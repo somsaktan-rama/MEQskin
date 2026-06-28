@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>MEQ Portal System V1.11</title>
+  <title>MEQ Portal System V1.12</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <style>
@@ -46,9 +46,22 @@
       </div>
       <div class="modal-body bg-light">
         
-        <div class="mb-3 d-flex align-items-center">
-          <label class="form-label fw-bold me-3 mb-0">เลือก AI Model:</label>
-          <select class="form-select w-auto" id="aiModelSelect"></select>
+        <div class="row mb-3 bg-white p-3 rounded shadow-sm mx-1 border">
+          <div class="col-md-6 d-flex align-items-center mb-2 mb-md-0">
+            <label class="form-label fw-bold me-3 mb-0">1. เลือก AI Model:</label>
+            <select class="form-select w-auto" id="aiModelSelect"></select>
+          </div>
+          <div class="col-md-6 d-flex align-items-center">
+            <label class="form-label fw-bold me-3 mb-0">2. รูปแบบการตรวจ:</label>
+            <div class="form-check form-check-inline">
+              <input class="form-check-input" type="radio" name="aiGradeMode" id="modeReason" value="with_reason" checked>
+              <label class="form-check-label text-success fw-bold" for="modeReason">วิเคราะห์เหตุผล</label>
+            </div>
+            <div class="form-check form-check-inline">
+              <input class="form-check-input" type="radio" name="aiGradeMode" id="modeScoreOnly" value="score_only">
+              <label class="form-check-label text-primary fw-bold" for="modeScoreOnly">เฉพาะคะแนน (รวดเร็ว)</label>
+            </div>
+          </div>
         </div>
 
         <div class="row">
@@ -63,9 +76,12 @@
         </div>
 
       </div>
-      <div class="modal-footer d-flex justify-content-between align-items-center">
+      <div class="modal-footer d-flex justify-content-between align-items-center w-100">
         <div>
           <h4 class="m-0 text-danger" id="aiTestTotalScoreDisplay">คะแนนรวม: 0 / 0</h4>
+          <span class="badge bg-secondary mt-1" id="aiTestInfoDisplay" style="font-size: 0.85rem;">
+            Model: - | Processing Time: - วินาที
+          </span>
         </div>
         <div>
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ปิด</button>
@@ -759,15 +775,14 @@ ${filesXML}          </questiontext>
   }
 
   async function submitAITest() {
-    // 1. ดึงข้อมูลคำตอบทั้งหมดจากฝั่งขวา
     const inputCards = document.querySelectorAll('.ai-test-input-card');
-    const editorCards = document.querySelectorAll('.sub-question-card'); // ใช้อ้างอิงโจทย์
+    const editorCards = document.querySelectorAll('.sub-question-card');
     let questionsPayload = [];
     let isAllFilled = true;
 
     inputCards.forEach((card, index) => {
       let answer = card.querySelector('.test-student-answer').value.trim();
-      if (!answer) isAllFilled = false; // ตรวจสอบว่ากรอกครบทุกข้อหรือไม่
+      if (!answer) isAllFilled = false; 
 
       let editorCard = editorCards[index];
       questionsPayload.push({
@@ -780,29 +795,30 @@ ${filesXML}          </questiontext>
       });
     });
 
-    // 2. Validate ต้องกรอกคำตอบครบ
     if (!isAllFilled) {
-      Swal.fire('แจ้งเตือน', 'กรุณากรอกคำตอบจำลองของนักศึกษาให้ครบทุกข้อที่มีเฉลย', 'warning');
+      Swal.fire('แจ้งเตือน', 'กรุณากรอกคำตอบจำลองของนักศึกษาให้ครบทุกข้อ', 'warning');
       return;
     }
 
-    // 3. เตรียมส่งข้อมูล
     const btn = document.getElementById('aiTestBtn');
     btn.disabled = true;
     btn.innerHTML = 'กำลังวิเคราะห์... ⏳';
+    
+    // ล้างข้อมูลเวลาเดิมทิ้งก่อนเริ่มตรวจ
+    document.getElementById('aiTestInfoDisplay').innerText = `กำลังประมวลผล...`;
+    document.getElementById('aiTestInfoDisplay').className = "badge bg-warning text-dark mt-1";
 
     const payload = {
       model: document.getElementById('aiModelSelect').value,
+      mode: document.querySelector('input[name="aiGradeMode"]:checked').value, // ดึงโหมดที่เลือก
       questions: questionsPayload
     };
 
-    // 4. เรียก API ไปที่ GAS
     const res = await callAPI('testAIGrading', payload);
     
     if (res.success) {
       let maxScoreTotal = 0;
       
-      // อัปเดต UI แสดงคะแนนแต่ละข้อ
       inputCards.forEach((card) => {
         let qNo = card.getAttribute('data-qno');
         let maxS = card.getAttribute('data-maxscore');
@@ -813,15 +829,26 @@ ${filesXML}          </questiontext>
           let resultBox = card.querySelector('.ai-result-box');
           resultBox.classList.remove('d-none');
           resultBox.querySelector('.ai-score-text').innerText = `คะแนนที่ AI ให้: ${resultData.score} / ${maxS}`;
-          resultBox.querySelector('.ai-reason-text').innerText = `เหตุผล: ${resultData.reason}`;
+          
+          // ถ้าเลือกโหมดเฉพาะคะแนน ไม่ต้องแสดงเหตุผล
+          if (payload.mode === 'score_only') {
+            resultBox.querySelector('.ai-reason-text').innerText = `(ตรวจโหมดเฉพาะคะแนน)`;
+          } else {
+            resultBox.querySelector('.ai-reason-text').innerText = `เหตุผล: ${resultData.reason}`;
+          }
         }
       });
 
-      // แสดงคะแนนรวมด้านล่าง
+      // อัปเดต UI คะแนนรวม, รุ่น AI, และเวลา
       document.getElementById('aiTestTotalScoreDisplay').innerText = `คะแนนรวม: ${res.totalScore} / ${maxScoreTotal}`;
+      document.getElementById('aiTestInfoDisplay').innerText = `Model: ${res.modelUsed} | Processing Time: ${res.timeTaken} วินาที`;
+      document.getElementById('aiTestInfoDisplay').className = "badge bg-info text-white mt-1";
+      
       Swal.fire({title: 'ตรวจเสร็จสิ้น', icon: 'success', timer: 1500, showConfirmButton: false});
 
     } else {
+      document.getElementById('aiTestInfoDisplay').innerText = `Error: ประมวลผลล้มเหลว`;
+      document.getElementById('aiTestInfoDisplay').className = "badge bg-danger mt-1";
       Swal.fire('ข้อผิดพลาด', res.message, 'error');
     }
 
