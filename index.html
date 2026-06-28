@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>MEQ Portal System V1.08</title>
+  <title>MEQ Portal System V1.09</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <style>
@@ -45,6 +45,7 @@
       <div id="user-profile"></div>
       <a class="nav-link active" onclick="switchView('editorView', this)">📝 สร้างข้อสอบใหม่</a>
       <a class="nav-link" onclick="switchView('bankView', this); loadMEQBank();">🔍 คลังข้อสอบร่วม</a>
+      <a class="nav-link text-warning" onclick="switchView('importView', this); loadMEQDropdown();">📥 นำเข้าคำตอบจาก Moodle</a>
     </div>
 
     <div class="col-md-10 main-content">
@@ -95,7 +96,7 @@
         </form>
       </div>
 
-      <div id="bankView" class="view-section">
+<div id="bankView" class="view-section">
         <h2 class="mb-4">คลังข้อสอบร่วม (Shared Question Bank)</h2>
         <div class="card p-4">
           <table class="table table-hover align-middle">
@@ -110,12 +111,44 @@
           </table>
         </div>
       </div>
-
-    </div>
-  </div>
+      <div id="importView" class="view-section">
+        <h2 class="mb-4">📥 นำเข้าคำตอบของนักศึกษา (Moodle Import)</h2>
+        
+        <div class="card p-4 border-top border-warning border-4">
+          <form id="importForm" onsubmit="handleImportSubmit(event)">
+            <div class="row mb-4">
+              <div class="col-md-6">
+                <label class="form-label fw-bold">1. เลือกชุดข้อสอบ (ExamSet / MEQ ID)</label>
+                <select class="form-select" id="importMeqId" required>
+                  <option value="">-- กำลังโหลดข้อมูลชุดข้อสอบ... --</option>
+                </select>
+                <small class="text-muted">ระบบจะแสดงเฉพาะชุดข้อสอบที่คุณมีสิทธิ์เข้าถึงเท่านั้น</small>
+              </div>
+            </div>
+            
+            <div class="row mb-4">
+              <div class="col-md-6">
+                <label class="form-label fw-bold">2. อัปโหลดไฟล์คะแนนจาก Moodle (.csv)</label>
+                <div class="file-drop-area border-warning" style="background: #fffcf5;">
+                  <input type="file" class="form-control" id="moodleCsvFile" accept=".csv" required>
+                </div>
+                <small class="text-muted">เลือก Export จาก Moodle ในรูปแบบ "Comma separated values (.csv)"</small>
+              </div>
+            </div>
+            
+            <div class="mt-2">
+              <button type="submit" class="btn btn-warning btn-lg shadow-sm" id="importBtn">
+                🚀 ประมวลผลและนำเข้าสู่ระบบ
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+      </div> </div>
 </div>
 
 <script>
+  
   let currentUser = null;
 
 // --- Utility: ฟังก์ชันเรียก API ด้วย Fetch ---
@@ -536,6 +569,79 @@ ${filesXML}          </questiontext>
     element.click();
     document.body.removeChild(element);
   }  
+
+// ==========================================
+  // ฟังก์ชันส่วนนำเข้าคำตอบ (Import View)
+  // ==========================================
+
+  // โหลดรายการ MEQ มาใส่ใน Dropdown ให้เลือก
+  async function loadMEQDropdown() {
+    const dropdown = document.getElementById('importMeqId');
+    dropdown.innerHTML = '<option value="">-- กำลังโหลด... --</option>';
+    
+    // เรียกใช้ API getMEQList ตัวเดิมที่มีอยู่แล้ว
+    const res = await callAPI('getMEQList', currentUser.mdid, true);
+    
+    if (res.success && res.data.length > 0) {
+      let options = '<option value="">-- เลือกชุดข้อสอบที่ต้องการนำเข้า --</option>';
+      res.data.forEach(item => {
+        options += `<option value="${item.meqId}">${item.meqId} : ${item.subject}</option>`;
+      });
+      dropdown.innerHTML = options;
+    } else {
+      dropdown.innerHTML = '<option value="">-- ไม่พบชุดข้อสอบของคุณ --</option>';
+    }
+  }
+
+  // ฟังก์ชันจัดการตอนกดปุ่ม Upload
+  async function handleImportSubmit(event) {
+    event.preventDefault();
+    
+    const meqId = document.getElementById('importMeqId').value;
+    const fileInput = document.getElementById('moodleCsvFile');
+    const btn = document.getElementById('importBtn');
+
+    if (!meqId || !fileInput.files.length) {
+      Swal.fire('แจ้งเตือน', 'กรุณาเลือกชุดข้อสอบและไฟล์ CSV', 'warning');
+      return;
+    }
+
+    const file = fileInput.files[0];
+    
+    // อ่านไฟล์ CSV ในฝั่งหน้าเว็บให้เป็น Text
+    const reader = new FileReader();
+    reader.onload = async function(e) {
+      const csvText = e.target.result;
+      
+      btn.disabled = true;
+      btn.innerHTML = 'กำลังประมวลผล... ⏳';
+      Swal.fire({ title: 'กำลังนำเข้าข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+      const payload = {
+        meqId: meqId,
+        csvText: csvText
+      };
+
+      // ส่ง Text ไปให้ GAS ประมวลผลแยกคอลัมน์
+      const res = await callAPI('importMoodleData', payload);
+      
+      if (res.success) {
+        Swal.fire('สำเร็จ!', res.message, 'success');
+        document.getElementById('importForm').reset();
+      } else {
+        Swal.fire('เกิดข้อผิดพลาด', res.message, 'error');
+      }
+      
+      btn.disabled = false;
+      btn.innerHTML = '🚀 ประมวลผลและนำเข้าสู่ระบบ';
+    };
+
+    reader.onerror = function() {
+      Swal.fire('ข้อผิดพลาด', 'ไม่สามารถอ่านไฟล์ได้', 'error');
+    };
+
+    reader.readAsText(file, 'UTF-8'); // อ่านไฟล์เป็น UTF-8 (รองรับภาษาไทย)
+  }
   
 </script>
 
