@@ -691,12 +691,15 @@ ${filesXML}          </questiontext>
     modelSelect.innerHTML = '';
     
     // ตั้งชื่อ Model จริงของ Google Gemini API
-    const liteModel = '<option value="gemini-1.5-flash-8b-latest">Gemini 1.5 Flash-8B (Lite)</option>';
-    const flashModel = '<option value="gemini-1.5-flash-latest">Gemini 1.5 Flash (มาตรฐาน)</option>';
-    const proModel = '<option value="gemini-1.5-pro-latest">Gemini 1.5 Pro (ฉลาดที่สุด)</option>';
+  //  const liteModel = '<option value="gemini-1.5-flash-8b-latest">Gemini 1.5 Flash-8B (Lite)</option>';
+  //  const flashModel = '<option value="gemini-1.5-flash-latest">Gemini 1.5 Flash (มาตรฐาน)</option>';
+  //  const proModel = '<option value="gemini-1.5-pro-latest">Gemini 1.5 Pro (ฉลาดที่สุด)</option>';
+    const liteModel = '<option value="gemini-flash-latest">Gemini Flash-Lite 3.1</option>';
+    const flashModel = '<option value="gemini-flash-latest">Gemini 3.5 Flash (มาตรฐาน)</option>';
+    const proModel = '<option value="gemini-pro-latest">Gemini 3.1 Pro (ฉลาดที่สุด)</option>';
 
     if (currentUser.role === 'staffadmin') {
-      modelSelect.innerHTML = flashModel + proModel + liteModel;
+      modelSelect.innerHTML = liteModel + flashModel + proModel;
     } else {
       modelSelect.innerHTML = liteModel;
     }
