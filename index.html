@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MEQ Portal System V1.00</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <style>
+    body { background-color: #f8f9fa; font-family: 'Sarabun', sans-serif; }
+    .sidebar { height: 100vh; background-color: #2c3e50; color: white; padding-top: 20px; position: fixed; }
+    .sidebar a { color: #adb5bd; text-decoration: none; padding: 15px 20px; display: block; border-bottom: 1px solid #34495e; cursor: pointer; }
+    .sidebar a:hover, .sidebar a.active { background-color: #34495e; color: white; }
+    .main-content { padding: 30px; margin-left: 16.666667%; min-height: 100vh;}
+    .view-section { display: none; } /* ซ่อนทุกหน้าโดยค่าเริ่มต้น */
+    .view-section.active { display: block; }
+    .card { border: none; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-radius: 10px; margin-bottom: 20px; }
+    .sub-question-card { border: 1px solid #dee2e6; background-color: #ffffff; padding: 25px; border-radius: 8px; margin-bottom: 20px; position: relative;}
+    .remove-btn { position: absolute; top: 15px; right: 15px; }
+    .file-drop-area { border: 2px dashed #a4b0be; border-radius: 6px; padding: 15px; background: #f1f2f6; text-align: center; }
+  </style>
+</head>
+<body>
+
+<script>
+  const API_URL = "https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec"; // <--- เปลี่ยน URL ตรงนี้
+</script>
+
+<div class="modal fade" id="loginModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-primary text-white"><h5 class="modal-title">เข้าสู่ระบบ (MEQ Portal)</h5></div>
+      <div class="modal-body">
+        <input type="text" class="form-control mb-3" id="loginInput" placeholder="กรอก MDID หรือ Email">
+        <button class="btn btn-primary w-100" onclick="handleLogin()">เข้าสู่ระบบ</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="container-fluid">
+  <div class="row">
+    <div class="col-md-2 sidebar d-none d-md-block" id="sidebar-menu">
+      <h4 class="text-center mb-4">MEQ Portal</h4>
+      <div id="user-profile"></div>
+      <a class="nav-link active" onclick="switchView('editorView', this)">📝 สร้างข้อสอบใหม่</a>
+      <a class="nav-link" onclick="switchView('bankView', this); loadMEQBank();">🔍 คลังข้อสอบร่วม</a>
+    </div>
+
+    <div class="col-md-10 main-content">
+      
+      <div id="editorView" class="view-section active">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+          <h2 id="editorTitle">สร้างข้อสอบใหม่ (Create MEQ)</h2>
+          <button id="cancelEditBtn" class="btn btn-outline-danger d-none" onclick="cancelEdit()">❌ ยกเลิกการแก้ไข</button>
+        </div>
+        
+        <form id="questionForm" onsubmit="handleFormSubmit(event)">
+          <input type="hidden" id="isEditMode" value="false"> <div class="card p-4 border-top border-primary border-4">
+            <h4 class="mb-3 text-primary">ส่วนที่ 1: ข้อมูลชุดข้อสอบ (MEQ Master)</h4>
+            <div class="row mb-3">
+              <div class="col-md-4">
+                <label class="form-label">รหัสชุดข้อสอบ (MEQ ID)</label>
+                <input type="text" class="form-control" id="meqId" required>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">วิชา / หมวดหมู่</label>
+                <input type="text" class="form-control" id="subject" required>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">เวลารวม (นาที)</label>
+                <input type="number" step="0.5" class="form-control" id="timeTotal" required>
+              </div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">โจทย์สถานการณ์หลัก (Scenario Stem)</label>
+              <textarea class="form-control" id="scenarioStem" rows="2"></textarea>
+            </div>
+            <div class="row">
+              <div class="col-md-6"><input type="text" class="form-control bg-light" id="authorName" readonly></div>
+              <div class="col-md-6"><input type="text" class="form-control bg-light" id="institution" readonly></div>
+            </div>
+          </div>
+
+          <div id="sub-questions-container">
+            </div>
+
+          <button type="button" class="btn btn-outline-success mb-4 fw-bold" onclick="addSubQuestion()">➕ เพิ่มข้อย่อยต่อไป</button>
+          
+          <div class="card p-3 bg-light text-end">
+            <div>
+              <button type="submit" class="btn btn-primary btn-lg" id="submitBtn">💾 บันทึกชุดข้อสอบนี้</button>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <div id="bankView" class="view-section">
+        <h2 class="mb-4">คลังข้อสอบร่วม (Shared Question Bank)</h2>
+        <div class="card p-4">
+          <table class="table table-hover align-middle">
+            <thead class="table-dark">
+              <tr>
+                <th>MEQ ID</th><th>วิชา</th><th>จำนวนข้อย่อย</th><th>ผู้ออกข้อสอบ</th><th>สถาบัน</th><th>จัดการ</th>
+              </tr>
+            </thead>
+            <tbody id="bankTableBody">
+              <tr><td colspan="6" class="text-center">กำลังโหลดข้อมูล... ⏳</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  let currentUser = null;
+
+  // --- Utility: ฟังก์ชันเรียก API ด้วย Fetch ---
+  async function callAPI(action, payload = null, isGet = false) {
+    try {
+      if (isGet) {
+        let url = `${API_URL}?action=${action}`;
+        if(payload) url += `&meqId=${payload}`;
+        const res = await fetch(url);
+        return await res.json();
+      } else {
+        const res = await fetch(API_URL, {
+          method: 'POST',
+          body: JSON.stringify({ action, payload }),
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' } // ต้องใช้ text/plain เลี่ยง CORS Preflight ของ GAS
+        });
+        return await res.json();
+      }
+    } catch(err) {
+      return { success: false, message: 'การเชื่อมต่อ API ล้มเหลว: ' + err.message };
+    }
+  }
+
+  // --- การทำงานเมื่อเปิดหน้าเว็บ ---
+  document.addEventListener("DOMContentLoaded", () => {
+    new bootstrap.Modal(document.getElementById('loginModal')).show();
+    addSubQuestion(); // เพิ่มข้อย่อยเปล่า 1 ข้อรอไว้
+  });
+
+  // --- ระบบ Login ---
+  async function handleLogin() {
+    const loginValue = document.getElementById('loginInput').value;
+    if(!loginValue) return;
+    Swal.fire({ title: 'กำลังตรวจสอบ...', didOpen: () => Swal.showLoading() });
+    
+    const res = await callAPI('login', loginValue);
+    if(res.success) {
+      currentUser = res.user;
+      Swal.close();
+      bootstrap.Modal.getInstance(document.getElementById('loginModal')).hide();
+      
+      document.getElementById('authorName').value = currentUser.name;
+      document.getElementById('institution').value = currentUser.institute;
+      document.getElementById('user-profile').innerHTML = `
+        <div class="text-center mb-4 pb-3 border-bottom border-secondary">
+          <h6 class="text-info">${currentUser.name}</h6>
+          <small class="text-light">${currentUser.institute}</small>
+        </div>
+      `;
+    } else {
+      Swal.fire('ข้อผิดพลาด', res.message, 'error');
+    }
+  }
+
+  // --- ระบบเปลี่ยนหน้าต่าง (Routing) ---
+  function switchView(viewId, navElement) {
+    document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+    document.getElementById(viewId).classList.add('active');
+    
+    document.querySelectorAll('.nav-link').forEach(el => el.classList.remove('active'));
+    if(navElement) navElement.classList.add('active');
+  }
+
+  // ==========================================
+  // ฟังก์ชันส่วนคลังข้อสอบร่วม (Bank View)
+  // ==========================================
+  async function loadMEQBank() {
+    document.getElementById('bankTableBody').innerHTML = `<tr><td colspan="6" class="text-center">กำลังโหลดข้อมูล... ⏳</td></tr>`;
+    const res = await callAPI('getMEQList', null, true);
+    
+    if(res.success && res.data.length > 0) {
+      let html = '';
+      res.data.forEach(item => {
+        html += `
+          <tr>
+            <td class="fw-bold text-primary">${item.meqId}</td>
+            <td>${item.subject}</td>
+            <td>${item.subNo} ข้อ</td>
+            <td>${item.author}</td>
+            <td>${item.institution}</td>
+            <td>
+              <button class="btn btn-sm btn-warning" onclick="editMEQ('${item.meqId}')">✏️ แก้ไข</button>
+            </td>
+          </tr>
+        `;
+      });
+      document.getElementById('bankTableBody').innerHTML = html;
+    } else {
+      document.getElementById('bankTableBody').innerHTML = `<tr><td colspan="6" class="text-center text-danger">ยังไม่มีข้อมูลในคลัง</td></tr>`;
+    }
+  }
+
+  async function editMEQ(meqId) {
+    Swal.fire({ title: 'กำลังดึงข้อมูลข้อสอบ...', didOpen: () => Swal.showLoading() });
+    const res = await callAPI('getMEQDetails', meqId, true);
+    
+    if(res.success) {
+      Swal.close();
+      // 1. นำข้อมูล Master ใส่ Form
+      document.getElementById('meqId').value = res.master.meqId;
+      document.getElementById('meqId').readOnly = true; // ล็อก ID ไม่ให้แก้
+      document.getElementById('subject').value = res.master.subject;
+      document.getElementById('timeTotal').value = res.master.timeTotal;
+      document.getElementById('scenarioStem').value = res.master.scenarioStem;
+
+      // 2. นำข้อมูล Details สร้างข้อย่อย
+      const container = document.getElementById('sub-questions-container');
+      container.innerHTML = ''; // ล้างของเก่า
+      
+      res.details.forEach((dt, index) => {
+        addSubQuestion(dt); // สร้างการ์ดข้อย่อยพร้อมยัดข้อมูลเดิม
+      });
+
+      // 3. เปลี่ยน UI เป็นโหมด Edit
+      document.getElementById('isEditMode').value = "true";
+      document.getElementById('editorTitle').innerText = `แก้ไขข้อสอบ (Edit: ${meqId})`;
+      document.getElementById('submitBtn').innerText = "💾 อัปเดตข้อสอบ (Update MEQ)";
+      document.getElementById('submitBtn').classList.replace('btn-primary', 'btn-warning');
+      document.getElementById('cancelEditBtn').classList.remove('d-none');
+      
+      // สลับไปหน้า Editor
+      switchView('editorView', document.querySelector('.nav-link')); 
+    }
+  }
+
+  function cancelEdit() {
+    document.getElementById('questionForm').reset();
+    document.getElementById('isEditMode').value = "false";
+    document.getElementById('meqId').readOnly = false;
+    document.getElementById('editorTitle').innerText = "สร้างข้อสอบใหม่ (Create MEQ)";
+    document.getElementById('submitBtn').innerText = "💾 บันทึกชุดข้อสอบนี้";
+    document.getElementById('submitBtn').classList.replace('btn-warning', 'btn-primary');
+    document.getElementById('cancelEditBtn').classList.add('d-none');
+    document.getElementById('sub-questions-container').innerHTML = '';
+    addSubQuestion(); // รีเซ็ตข้อย่อย
+    
+    // ใส่ชื่อคนล็อกอินกลับคืน
+    document.getElementById('authorName').value = currentUser.name;
+    document.getElementById('institution').value = currentUser.institute;
+  }
+
+  // ==========================================
+  // ฟังก์ชันส่วนสร้าง/แก้ไข (Editor View)
+  // ==========================================
+  function updateQNumbers() {
+    const cards = document.querySelectorAll('.sub-question-card');
+    cards.forEach((card, index) => {
+      card.querySelector('.sq-title').innerText = `ข้อย่อยที่ ${index + 1}`;
+      card.querySelector('.sq-no').value = `Q${index + 1}`;
+    });
+  }
+
+  function addSubQuestion(data = null) {
+    const container = document.getElementById('sub-questions-container');
+    const newIndex = document.querySelectorAll('.sub-question-card').length + 1;
+    
+    // ถ้าเป็นการแก้ไข (มีข้อมูลส่งมา) ให้ดึงของเดิมมาแสดง
+    const existingImagesInfo = data && data.imageFilenames ? `<small class="text-success d-block mt-1">ไฟล์เดิม: ${data.imageFilenames}</small>` : '';
+
+    const htmlString = `
+      <div class="sub-question-card">
+        <button type="button" class="btn btn-sm btn-outline-danger remove-btn" onclick="this.closest('.sub-question-card').remove(); updateQNumbers();">❌ ลบข้อนี้</button>
+        <h5 class="text-secondary mb-3 sq-title">ข้อย่อยที่ ${newIndex}</h5>
+        <div class="row mb-3">
+          <div class="col-md-3">
+            <label class="form-label">รหัสข้อ</label>
+            <input type="text" class="form-control sq-no" value="${data ? data.subQuestion : 'Q'+newIndex}" required>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">คะแนนเต็มข้อนี้</label>
+            <input type="number" class="form-control sq-score" value="${data ? data.maxScore : ''}" required>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">รูปภาพ (หากอัปโหลดใหม่จะแทนที่รูปเดิม)</label>
+            <div class="file-drop-area">
+              <input type="file" class="form-control sq-file-input" accept="image/*" multiple>
+              ${existingImagesInfo}
+              <input type="hidden" class="sq-existing-images" value="${data && data.imageFilenames ? data.imageFilenames : ''}">
+            </div>
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">คำถาม (Question Text)</label>
+          <textarea class="form-control sq-text" rows="2" required>${data ? data.questionText : ''}</textarea>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">เฉลย (Answer Key)</label>
+          <textarea class="form-control sq-key" rows="2">${data ? data.answerKey : ''}</textarea>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">เกณฑ์ AI (AI Rubric)</label>
+          <textarea class="form-control sq-rubric" rows="2">${data ? data.aiRubric : ''}</textarea>
+        </div>
+      </div>
+    `;
+    container.insertAdjacentHTML('beforeend', htmlString);
+  }
+
+  function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve({ base64: reader.result.split(',')[1], mimeType: file.type });
+      reader.onerror = error => reject(error);
+    });
+  }
+
+  async function handleFormSubmit(event) {
+    event.preventDefault(); 
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = true;
+    btn.innerHTML = 'กำลังประมวลผล... ⏳';
+
+    const isEditMode = document.getElementById('isEditMode').value === "true";
+    const actionType = isEditMode ? 'updateMEQ' : 'saveMEQ';
+
+    try {
+      const masterData = {
+        meqId: document.getElementById('meqId').value,
+        subject: document.getElementById('subject').value,
+        timeTotal: document.getElementById('timeTotal').value,
+        scenarioStem: document.getElementById('scenarioStem').value,
+        authorName: currentUser.name,
+        institution: currentUser.institute
+      };
+
+      const detailsData = [];
+      const cards = document.querySelectorAll('.sub-question-card');
+      
+      for (const card of cards) {
+        let imageDataArray = [];
+        const fileInput = card.querySelector('.sq-file-input');
+        
+        if(fileInput.files && fileInput.files.length > 0) {
+          for(let i=0; i < fileInput.files.length; i++) {
+            imageDataArray.push(await fileToBase64(fileInput.files[i]));
+          }
+        }
+
+        detailsData.push({
+          subQuestion: card.querySelector('.sq-no').value,
+          maxScore: card.querySelector('.sq-score').value,
+          questionText: card.querySelector('.sq-text').value,
+          answerKey: card.querySelector('.sq-key').value,
+          aiRubric: card.querySelector('.sq-rubric').value,
+          imageFiles: imageDataArray,
+          existingImages: card.querySelector('.sq-existing-images').value // ส่งชื่อไฟล์เก่าไปด้วย
+        });
+      }
+
+      const payload = { master: masterData, details: detailsData };
+      const res = await callAPI(actionType, payload);
+
+      if(res.success) {
+        Swal.fire('สำเร็จ!', res.message, 'success');
+        if (isEditMode) cancelEdit(); // กลับเข้าโหมดปกติ
+        else {
+          document.getElementById('questionForm').reset();
+          cancelEdit(); 
+        }
+      } else {
+        Swal.fire('เกิดข้อผิดพลาด', res.message, 'error');
+      }
+    } catch(err) {
+      Swal.fire('ข้อผิดพลาด', err.toString(), 'error');
+    }
+    
+    btn.disabled = false;
+    btn.innerHTML = isEditMode ? '💾 อัปเดตข้อสอบ (Update MEQ)' : '💾 บันทึกชุดข้อสอบนี้';
+  }
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
