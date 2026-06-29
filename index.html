@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>MEQ Portal System V1.23</title>
+  <title>MEQ Portal System V1.24</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <style>
@@ -163,15 +163,21 @@
 <div id="bankView" class="view-section">
         <h2 class="mb-4">คลังข้อสอบร่วม (Shared Question Bank)</h2>
         <div class="card p-4">
-          <table class="table table-hover align-middle">
-            <thead class="table-dark">
+          <table class="table table-hover table-bordered align-middle">
+            <thead class="table-primary text-center">
               <tr>
-                <th>MEQ ID</th><th>วิชา</th><th>จำนวนข้อย่อย</th><th>ผู้ออกข้อสอบ</th><th>สถาบัน</th><th>จัดการ</th>
+                <th>วันที่อัปเดต</th>
+                <th id="th-meqId" class="sortable-header" style="cursor: pointer;" onclick="sortTable('meqId')">MEQ ID ↕️</th>
+                <th id="th-subject" class="sortable-header" style="cursor: pointer;" onclick="sortTable('subject')">วิชา ↕️</th>
+                <th>จำนวนข้อ</th>
+                <th id="th-author" class="sortable-header" style="cursor: pointer;" onclick="sortTable('author')">ผู้ออกข้อสอบ ↕️</th>
+                <th id="th-institution" class="sortable-header" style="cursor: pointer;" onclick="sortTable('institution')">สถาบัน ↕️</th>
+                <th>สถานะ</th>
+                <th>จัดการ</th>
               </tr>
             </thead>
             <tbody id="bankTableBody">
-              <tr><td colspan="6" class="text-center">กำลังโหลดข้อมูล... ⏳</td></tr>
-            </tbody>
+              </tbody>
           </table>
         </div>
       </div>
@@ -242,6 +248,9 @@
 <script>
   
   let currentUser = null;
+  // 🟢 เพิ่มตัวแปร 2 ตัวนี้ สำหรับระบบ Sort ตาราง
+  let currentBankData = []; 
+  let currentSort = { column: '', direction: 'asc' };
 
 // --- Utility: ฟังก์ชันเรียก API ด้วย Fetch ---
   async function callAPI(action, payload = null, isGet = false) {
@@ -328,36 +337,104 @@
     }
   }
 
+// ==========================================
+  // ฟังก์ชันโหลดข้อมูลคลังข้อสอบ (อัปเดตรองรับ Sort)
   // ==========================================
-  // ฟังก์ชันส่วนคลังข้อสอบร่วม (Bank View)
-  // ==========================================
-async function loadMEQBank() {
-    document.getElementById('bankTableBody').innerHTML = `<tr><td colspan="6" class="text-center">กำลังโหลดข้อมูล... ⏳</td></tr>`;
+  async function loadMEQBank() {
+    const tbody = document.getElementById('bankTableBody');
+    tbody.innerHTML = `<tr><td colspan="8" class="text-center">กำลังโหลดข้อมูล... ⏳</td></tr>`;
     
-    // ส่ง currentUser.mdid ไปด้วยเพื่อใช้ตรวจสอบ AllowedSets / Role
-    const res = await callAPI('getMEQList', currentUser.mdid, true);
-    
-    if(res.success && res.data.length > 0) {
-      let html = '';
-      res.data.forEach(item => {
-        html += `
-          <tr>
-            <td class="fw-bold text-primary">${item.meqId}</td>
-            <td>${item.subject}</td>
-            <td>${item.subNo} ข้อ</td>
-            <td>${item.author}</td>
-            <td>${item.institution}</td>
-            <td>
-              <button class="btn btn-sm btn-warning" onclick="editMEQ('${item.meqId}')">✏️ แก้ไข</button>
-              <button class="btn btn-sm btn-info ms-1 text-white" onclick="exportMEQToMoodle('${item.meqId}')">📤 Export (Moodle)</button>
-            </td>
-          </tr>
-        `;
+    const res = await callAPI('getMEQList', currentUser.mdid);
+    if (res.success) {
+      currentBankData = res.data; // เก็บข้อมูลลงตัวแปร Global
+      
+      // รีเซ็ตลูกศร Sort กลับเป็นค่าเริ่มต้น
+      currentSort = { column: '', direction: 'asc' };
+      document.querySelectorAll('.sortable-header').forEach(th => {
+        let text = th.innerText.replace(' 🔼', '').replace(' 🔽', '').replace(' ↕️', '');
+        th.innerText = text + ' ↕️';
       });
-      document.getElementById('bankTableBody').innerHTML = html;
+
+      renderBankTable(currentBankData); // สั่งวาดตาราง
     } else {
-      document.getElementById('bankTableBody').innerHTML = `<tr><td colspan="6" class="text-center text-danger">ไม่พบข้อสอบในคลัง (หรือท่านไม่มีสิทธิ์เข้าถึง)</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">เกิดข้อผิดพลาด: ${res.message}</td></tr>`;
     }
+  }
+
+  // ==========================================
+  // ฟังก์ชันวาดตาราง (Render Table)
+  // ==========================================
+  function renderBankTable(data) {
+    const tbody = document.getElementById('bankTableBody');
+    tbody.innerHTML = '';
+    
+    if (data.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted">ไม่พบข้อมูลข้อสอบในคลัง</td></tr>`;
+      return;
+    }
+
+    data.forEach(row => {
+      let dateStr = row.timestamp ? new Date(row.timestamp).toLocaleDateString('th-TH') : '-';
+      let statusBadge = row.status === 'Published' ? 'bg-success' : 'bg-warning text-dark';
+      
+      let tr = `
+        <tr class="text-center">
+          <td>${dateStr}</td>
+          <td><span class="badge bg-secondary fs-6">${row.meqId}</span></td>
+          <td class="text-start">${row.subject}</td>
+          <td>${row.subNo || 0}</td>
+          <td>${row.author}</td>
+          <td>${row.institution}</td>
+          <td><span class="badge ${statusBadge}">${row.status || 'Draft'}</span></td>
+          <td>
+            <button class="btn btn-sm btn-outline-primary fw-bold" onclick="editMEQ('${row.meqId}')">✏️ แก้ไข</button>
+          </td>
+        </tr>
+      `;
+      tbody.innerHTML += tr;
+    });
+  }
+
+  // ==========================================
+  // ฟังก์ชันเรียงลำดับข้อมูล (Sort Table)
+  // ==========================================
+  function sortTable(column) {
+    if (!currentBankData || currentBankData.length === 0) return;
+
+    // 1. สลับทิศทางถ้ากดคอลัมน์เดิม (asc -> desc -> asc)
+    if (currentSort.column === column) {
+      currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+    } else {
+      currentSort.column = column;
+      currentSort.direction = 'asc'; // ถ้ากดคอลัมน์ใหม่ ให้เริ่มที่ A-Z เสมอ
+    }
+
+    // 2. เรียงลำดับ Array ในหน่วยความจำ
+    currentBankData.sort((a, b) => {
+      let valA = a[column] ? a[column].toString().toLowerCase() : '';
+      let valB = b[column] ? b[column].toString().toLowerCase() : '';
+
+      if (valA < valB) return currentSort.direction === 'asc' ? -1 : 1;
+      if (valA > valB) return currentSort.direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+    // 3. วาดตารางใหม่ด้วยข้อมูลที่เรียงแล้ว
+    renderBankTable(currentBankData);
+
+    // 4. อัปเดตไอคอนลูกศรบนหัวตาราง
+    document.querySelectorAll('.sortable-header').forEach(th => {
+      // ลบลูกศรเดิมออกก่อน
+      let text = th.innerText.replace(' 🔼', '').replace(' 🔽', '').replace(' ↕️', '');
+      
+      if (th.id === `th-${column}`) {
+        // ใส่ลูกศรชี้ขึ้น/ลง ให้คอลัมน์ที่ถูกกด
+        th.innerText = text + (currentSort.direction === 'asc' ? ' 🔼' : ' 🔽');
+      } else {
+        // คอลัมน์อื่นให้กลับเป็นลูกศรเฉยๆ
+        th.innerText = text + ' ↕️';
+      }
+    });
   }
 
 async function editMEQ(meqId) {
