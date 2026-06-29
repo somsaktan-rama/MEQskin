@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>MEQ Portal System V1.12</title>
+  <title>MEQ Portal System V1.13</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <style>
@@ -697,30 +697,51 @@ ${filesXML}          </questiontext>
     reader.readAsText(file, 'UTF-8'); // อ่านไฟล์เป็น UTF-8 (รองรับภาษาไทย)
   }
 
-// ==========================================
+  // ==========================================
   // ฟังก์ชันระบบทดสอบ AI (AI Testing Playground)
   // ==========================================
   
-  function openAITestModal() {
+function openAITestModal() {
     // 1. จัดการตัวเลือก Model ตาม Role (staffadmin เลือกได้หมด, staff ได้แค่ lite)
     const modelSelect = document.getElementById('aiModelSelect');
     modelSelect.innerHTML = '';
     
-    // ตั้งชื่อ Model จริงของ Google Gemini API
-  //  const liteModel = '<option value="gemini-1.5-flash-8b-latest">Gemini 1.5 Flash-8B (Lite)</option>';
-  //  const flashModel = '<option value="gemini-1.5-flash-latest">Gemini 1.5 Flash (มาตรฐาน)</option>';
-  //  const proModel = '<option value="gemini-1.5-pro-latest">Gemini 1.5 Pro (ฉลาดที่สุด)</option>';
-    const liteModel = '<option value="gemini-flash-latest">Gemini Flash-Lite 3.1</option>';
-    const flashModel = '<option value="gemini-flash-latest">Gemini 3.5 Flash (มาตรฐาน)</option>';
-    const proModel = '<option value="gemini-pro-latest">Gemini 3.1 Pro (ฉลาดที่สุด)</option>';
+    const liteModel = '<option value="gemini-1.5-flash-8b-latest">Gemini 1.5 Flash-8B (เร็วสุด/ประหยัด)</option>';
+    const flashModel = '<option value="gemini-1.5-flash-latest">Gemini 1.5 Flash (มาตรฐาน/สมดุล)</option>';
+    const proModel = '<option value="gemini-1.5-pro-latest">Gemini 1.5 Pro (ฉลาดที่สุด)</option>';
 
     if (currentUser.role === 'staffadmin') {
-      modelSelect.innerHTML = liteModel + flashModel + proModel;
+      modelSelect.innerHTML = flashModel + proModel + liteModel;
     } else {
       modelSelect.innerHTML = liteModel;
     }
 
-    // 2. ดึงข้อมูลจากฟอร์ม Editor ฝั่งซ้ายมาสร้าง UI
+    // 2. จัดการตัวเลือกโหมดการตรวจตาม Role (Superstaff vs Staff)
+    const modeContainer = document.getElementById('aiTestModeContainer');
+    
+    if (currentUser.role === 'staffadmin') {
+      // staffadmin (superstaff) เห็นทั้ง 2 โหมด และสลับได้
+      modeContainer.innerHTML = `
+        <div class="form-check form-check-inline">
+          <input class="form-check-input" type="radio" name="aiGradeMode" id="modeReason" value="with_reason" checked>
+          <label class="form-check-label text-success fw-bold" for="modeReason">วิเคราะห์เหตุผล</label>
+        </div>
+        <div class="form-check form-check-inline">
+          <input class="form-check-input" type="radio" name="aiGradeMode" id="modeScoreOnly" value="score_only">
+          <label class="form-check-label text-primary fw-bold" for="modeScoreOnly">เฉพาะคะแนน</label>
+        </div>
+      `;
+    } else {
+      // staff ทั่วไป บังคับใช้โหมดเฉพาะคะแนน และซ่อนตัวเลือกวิเคราะห์เหตุผล
+      modeContainer.innerHTML = `
+        <div class="form-check form-check-inline">
+          <input class="form-check-input" type="radio" name="aiGradeMode" id="modeScoreOnly" value="score_only" checked>
+          <label class="form-check-label text-primary fw-bold" for="modeScoreOnly">เฉพาะคะแนน (โหมดมาตรฐานสำหรับ Staff)</label>
+        </div>
+      `;
+    }
+
+    // 3. ดึงข้อมูลจากฟอร์ม Editor ฝั่งซ้ายมาสร้าง UI (แสดงเฉพาะโจทย์ และ Rubric)
     const cards = document.querySelectorAll('.sub-question-card');
     const leftPane = document.getElementById('aiTestLeftPane');
     const rightPane = document.getElementById('aiTestRightPane');
@@ -732,22 +753,20 @@ ${filesXML}          </questiontext>
     cards.forEach((card, index) => {
       let qNo = card.querySelector('.sq-no').value;
       let qText = card.querySelector('.sq-text').value;
-      let qKey = card.querySelector('.sq-key').value;
-      let qRubric = card.querySelector('.sq-rubric').value;
+      let qRubric = card.querySelector('.sq-rubric').value; // ดึงแค่ Rubric มาใช้งาน
       let qScore = card.querySelector('.sq-score').value;
 
-      // ตรวจสอบว่ามีการกรอกข้อมูลข้อสอบหรือเฉลยหรือไม่
-      if (qText || qKey) {
+      // ตรวจสอบว่ามีการกรอกโจทย์หรือเกณฑ์หรือไม่
+      if (qText || qRubric) {
         hasQuestions = true;
         totalMaxScore += Number(qScore || 0);
 
-        // สร้างฝั่งซ้าย (เฉลย)
+        // สร้างฝั่งซ้าย (แสดงแค่โจทย์ และ เกณฑ์/Rubric ซ่อนเฉลยทิ้งไปเพื่อความสะอาดตา)
         leftPane.innerHTML += `
           <div class="card mb-3 p-3 shadow-sm border-info">
             <h6 class="text-info">${qNo} (คะแนนเต็ม: ${qScore || 0})</h6>
-            <small class="d-block mb-1"><strong>โจทย์:</strong> ${qText}</small>
-            <small class="d-block mb-1 text-success"><strong>เฉลย:</strong> ${qKey}</small>
-            <small class="d-block text-warning"><strong>เกณฑ์ (Rubric):</strong> ${qRubric}</small>
+            <small class="d-block mb-2"><strong>โจทย์:</strong> ${qText}</small>
+            <small class="d-block text-warning"><strong>เกณฑ์ (Rubric):</strong><br>${(qRubric || '-').replace(/\n/g, '<br>')}</small>
           </div>
         `;
 
@@ -766,14 +785,17 @@ ${filesXML}          </questiontext>
     });
 
     if (!hasQuestions) {
-      Swal.fire('แจ้งเตือน', 'กรุณากรอกโจทย์และเฉลยในหน้า Editor ก่อนทำการทดสอบ', 'warning');
+      Swal.fire('แจ้งเตือน', 'กรุณากรอกโจทย์และเกณฑ์ให้คะแนน (Rubric) ก่อนทำการทดสอบ', 'warning');
       return;
     }
 
     document.getElementById('aiTestTotalScoreDisplay').innerText = `คะแนนรวม: 0 / ${totalMaxScore}`;
+    document.getElementById('aiTestInfoDisplay').innerText = `Model: - | Processing Time: - วินาที`;
+    document.getElementById('aiTestInfoDisplay').className = "badge bg-secondary mt-1";
+    
     new bootstrap.Modal(document.getElementById('aiTestModal')).show();
   }
-
+  
   async function submitAITest() {
     const inputCards = document.querySelectorAll('.ai-test-input-card');
     const editorCards = document.querySelectorAll('.sub-question-card');
