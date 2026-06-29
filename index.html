@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>MEQ Portal System V1.24</title>
+  <title>MEQ Portal System V1.25</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <style>
@@ -377,7 +377,7 @@
       let dateStr = row.timestamp ? new Date(row.timestamp).toLocaleDateString('th-TH') : '-';
       let statusBadge = row.status === 'Published' ? 'bg-success' : 'bg-warning text-dark';
       
-      let tr = `
+    let tr = `
         <tr class="text-center">
           <td>${dateStr}</td>
           <td><span class="badge bg-secondary fs-6">${row.meqId}</span></td>
@@ -387,10 +387,14 @@
           <td>${row.institution}</td>
           <td><span class="badge ${statusBadge}">${row.status || 'Draft'}</span></td>
           <td>
-            <button class="btn btn-sm btn-outline-primary fw-bold" onclick="editMEQ('${row.meqId}')">✏️ แก้ไข</button>
+            <div class="d-flex justify-content-center gap-1">
+              <button class="btn btn-sm btn-outline-primary fw-bold" onclick="editMEQ('${row.meqId}')">✏️ แก้ไข</button>
+              <button class="btn btn-sm btn-outline-success fw-bold" onclick="exportToMoodle('${row.meqId}')">📤 ออก Moodle</button>
+            </div>
           </td>
         </tr>
       `;
+      
       tbody.innerHTML += tr;
     });
   }
@@ -1167,6 +1171,41 @@ function createNewMEQ(linkEl) {
     
     // 5. สลับหน้าจอไปที่ Editor
     switchView('editorView', linkEl);
+  }
+
+// ==========================================
+  // ฟังก์ชัน Export ข้อสอบไปยัง Moodle
+  // ==========================================
+  async function exportToMoodle(meqId) {
+    Swal.fire({ 
+      title: 'กำลังเตรียมไฟล์ Moodle XML...', 
+      allowOutsideClick: false, 
+      didOpen: () => Swal.showLoading() 
+    });
+    
+    const res = await callAPI('exportMoodle', meqId);
+    
+    if (res.success) {
+      // 1. แปลงข้อความที่ได้มาเป็นไฟล์ (Blob)
+      const blob = new Blob([res.xml], { type: 'text/xml' });
+      const url = window.URL.createObjectURL(blob);
+      
+      // 2. สร้างปุ่มลิงก์จำลองแล้วสั่งคลิกเพื่อดาวน์โหลด
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = res.fileName;
+      document.body.appendChild(a);
+      a.click();
+      
+      // 3. ลบลิงก์จำลองทิ้งและแจ้งเตือนสำเร็จ
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      Swal.fire('สำเร็จ!', 'ไฟล์ถูกดาวน์โหลดแล้ว นำไป Import เข้า Question Bank ใน Moodle ได้เลย', 'success');
+    } else {
+      Swal.fire('ข้อผิดพลาด', res.message, 'error');
+    }
   }
   
 </script>
