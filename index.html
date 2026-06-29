@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>MEQ Portal System V1.22</title>
+  <title>MEQ Portal System V1.23</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <style>
@@ -368,43 +368,43 @@ async function editMEQ(meqId) {
     });
     
     // เรียกข้อมูลรายละเอียดจากระบบหลังบ้าน
-    const res = await callAPI('getMEQDetails', meqId, true);
+    const res = await callAPI('getMEQDetails', meqId, true); 
     Swal.close();
     
-    if (res.success) {
-      // สลับหน้าจอไปยังหน้าสร้าง/แก้ไขข้อสอบ และสั่งไฮไลต์เมนูแรกใน Sidebar
-      const navLink = document.querySelector('a[onclick*="editorView"]') || null;
+    if (res.success) { 
+      const navLink = document.querySelector('a[onclick*="editorView"]') || null; 
       switchView('editorView', navLink);
       
-      // เปลี่ยนหัวพาดหัวและเติมข้อมูลหลัก (Master) ลงฟอร์ม
       document.getElementById('editorTitle').innerText = '✏️ แก้ไขข้อสอบ (Edit MEQ)';
-      document.getElementById('meqId').value = res.master.meqId;
-      document.getElementById('meqId').readOnly = true; // ล็อกไม่ให้แก้ไขรหัสหลัก
+      document.getElementById('meqId').value = res.master.meqId; 
+      document.getElementById('meqId').readOnly = true; 
+      
+      // 🟢 เพิ่ม 2 บรรทัดนี้: เปิดโหมดแก้ไข และดึงค่าเวลา
+      if(document.getElementById('isEditMode')) document.getElementById('isEditMode').value = "true";
+      if(document.getElementById('timeTotal')) document.getElementById('timeTotal').value = res.master.timeTotal || 10;
       
       if(document.getElementById('subject')) document.getElementById('subject').value = res.master.subject;
-      if(document.getElementById('scenarioStem')) document.getElementById('scenarioStem').value = res.master.scenarioStem || '';
+      if(document.getElementById('scenarioStem')) document.getElementById('scenarioStem').value = res.master.scenarioStem || ''; 
       if(document.getElementById('author')) document.getElementById('author').value = res.master.author || '';
       if(document.getElementById('institution')) document.getElementById('institution').value = res.master.institution || '';
       
-      // เคลียร์และวาดรายการข้อย่อยใหม่ทั้งหมด
-      const container = document.getElementById('sub-questions-container');
+      const container = document.getElementById('sub-questions-container'); 
       container.innerHTML = '';
       
-      if (res.details && res.details.length > 0) {
+      if (res.details && res.details.length > 0) { 
         res.details.forEach(dt => {
           addSubQuestion(dt);
         });
-      } else {
+      } else { 
         addSubQuestion();
       }
       
-      // เลื่อนหน้าจอกลับขึ้นไปด้านบนสุดเพื่อให้พร้อมทำงาน
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      window.scrollTo({ top: 0, behavior: 'smooth' }); 
     } else {
-      Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถโหลดข้อมูลได้: ' + res.message, 'error');
+      Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถโหลดข้อมูลได้: ' + res.message, 'error'); 
     }
   }
-
+  
   function cancelEdit() {
     document.getElementById('questionForm').reset();
     document.getElementById('isEditMode').value = "false";
@@ -537,11 +537,12 @@ function addSubQuestion(data = null) {
     event.preventDefault(); 
     const btn = document.getElementById('submitBtn');
     btn.disabled = true;
-    btn.innerHTML = 'กำลังประมวลผล... ⏳';
+    btn.innerHTML = 'กำลังประมวลผล... ⏳'; 
 
-    const isEditMode = document.getElementById('isEditMode').value === "true";
-    const actionType = isEditMode ? 'updateMEQ' : 'saveMEQ';
-
+    // 🟢 เปลี่ยนจาก const เป็น let เพื่อให้แก้ไขค่าได้
+    let isEditMode = document.getElementById('isEditMode') ? document.getElementById('isEditMode').value === "true" : false;
+    const actionType = isEditMode ? 'updateMEQ' : 'saveMEQ'; 
+    
     try {
       const masterData = {
         meqId: document.getElementById('meqId').value,
@@ -551,18 +552,18 @@ function addSubQuestion(data = null) {
         authorName: currentUser.name,
         institution: currentUser.institute
       };
-
-      const detailsData = [];
+      
+      const detailsData = []; 
       const cards = document.querySelectorAll('.sub-question-card');
       
       for (const card of cards) {
         let imageDataArray = [];
-        const fileInput = card.querySelector('.sq-file-input');
+        const fileInput = card.querySelector('.sq-file-input'); 
         
         if(fileInput.files && fileInput.files.length > 0) {
           for(let i=0; i < fileInput.files.length; i++) {
             imageDataArray.push(await fileToBase64(fileInput.files[i]));
-          }
+          } 
         }
 
         detailsData.push({
@@ -572,50 +573,44 @@ function addSubQuestion(data = null) {
           answerKey: card.querySelector('.sq-key').value,
           aiRubric: card.querySelector('.sq-rubric').value,
           imageFiles: imageDataArray,
-          existingImages: card.querySelector('.sq-existing-images').value // ส่งชื่อไฟล์เก่าไปด้วย
-        });
+          existingImages: card.querySelector('.sq-existing-images').value 
+        }); 
       }
 
       const payload = { master: masterData, details: detailsData };
-      const res = await callAPI(actionType, payload);
+      const res = await callAPI(actionType, payload); 
 
-// 👇👇 บล็อกโค้ดที่แก้ไขใหม่เพื่อความปลอดภัย 100% 👇👇
       if(res.success) {
         Swal.fire('สำเร็จ!', 'บันทึกข้อมูลข้อสอบเรียบร้อยแล้ว', 'success');
         
-        // 1. ล้างข้อมูลในฟอร์มและข้อย่อยออกให้เกลี้ยงอย่างปลอดภัย (ดักไว้ทั้งสอง ID ฟอร์ม)
-        if (document.getElementById('meqForm')) document.getElementById('meqForm').reset();
+        if (document.getElementById('meqForm')) document.getElementById('meqForm').reset(); 
         if (document.getElementById('questionForm')) document.getElementById('questionForm').reset();
         
-        const container = document.getElementById('sub-questions-container');
+        const container = document.getElementById('sub-questions-container'); 
         if (container) container.innerHTML = '';
         
-        // ปลดล็อกช่องรหัสข้อสอบ MEQ ID
         const meqIdInput = document.getElementById('meqId');
-        if (meqIdInput) meqIdInput.readOnly = false;
+        if (meqIdInput) meqIdInput.readOnly = false; 
         
-        // คืนค่าหัวข้อตัวหนังสือด้านบน
         if (document.getElementById('editorTitle')) {
           document.getElementById('editorTitle').innerText = 'สร้างข้อสอบใหม่ (Create MEQ)';
-        }
+        } 
         
-        // รีเซ็ตตัวแปรสถานะโหมดแก้ไข (ถ้ามี)
-        if (typeof isEditMode !== 'undefined') isEditMode = false;
+        // 🟢 รีเซ็ตสถานะโหมดแก้ไข ทั้งในตัวแปรและในฟอร์ม HTML
+        if (document.getElementById('isEditMode')) document.getElementById('isEditMode').value = "false";
+        isEditMode = false; 
         
-        // 2. สลับหน้าจอไปที่คลังข้อสอบร่วม และสั่งโหลดตารางใหม่ทันที
         switchView('bankView');
-        loadMEQBank();
-        
+        loadMEQBank(); 
       } else {
         Swal.fire('เกิดข้อผิดพลาด', res.message, 'error');
-      }
+      } 
     } catch(err) {
       Swal.fire('ข้อผิดพลาด', err.toString(), 'error');
-    }
+    } 
     
     btn.disabled = false;
-    // ตรวจสอบข้อความปุ่มด้วยเงื่อนไขที่ปลอดภัย
-    btn.innerHTML = (typeof isEditMode !== 'undefined' && isEditMode) ? '💾 อัปเดตข้อสอบ (Update MEQ)' : '💾 บันทึกชุดข้อสอบนี้';
+    btn.innerHTML = (isEditMode) ? '💾 อัปเดตข้อสอบ (Update MEQ)' : '💾 บันทึกชุดข้อสอบนี้'; 
   }
 
   // ==========================================
@@ -1068,7 +1063,7 @@ function openAITestModal() {
   // ==========================================
   // ฟังก์ชันสลับไปหน้าสร้างข้อสอบใหม่ (และรีเซ็ตข้อมูล)
   // ==========================================
-  function createNewMEQ(linkEl) {
+function createNewMEQ(linkEl) {
     // 1. รีเซ็ตฟอร์มทั้งหมด
     const form = document.getElementById('meqForm');
     if (form) form.reset();
@@ -1080,6 +1075,11 @@ function openAITestModal() {
     // 3. เปลี่ยนหัวข้อกลับเป็นสร้างใหม่
     const title = document.getElementById('editorTitle');
     if (title) title.innerText = 'สร้างข้อสอบใหม่ (Create MEQ)';
+    
+    // 🟢 3.5 ล้างสถานะโหมดแก้ไขให้เป็น false เพื่อบังคับให้เป็นการสร้างใหม่เสมอ
+    if (document.getElementById('isEditMode')) {
+      document.getElementById('isEditMode').value = "false";
+    }
     
     // 4. ล้างข้อย่อยทิ้งทั้งหมด และสร้างข้อย่อยที่ 1 ว่างๆ ขึ้นมาใหม่
     const container = document.getElementById('sub-questions-container');
