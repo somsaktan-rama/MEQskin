@@ -3,9 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MEQ Data Entry-กรอกคำตอบ 1.04</title>
+  <title>MEQ Data Entry-1.05</title>
   
+  <!-- Bootstrap 5 CSS -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- SweetAlert2 CSS -->
   <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.3/dist/sweetalert2.min.css" rel="stylesheet">
   
   <style>
@@ -17,92 +19,85 @@
 </head>
 <body>
 
+  <!-- ส่วนหัว -->
   <div class="header-banner mb-4 shadow-sm">
     <div class="container d-flex justify-content-between align-items-center">
-      <h3 class="m-0">⌨️ MEQ Data Entry 1.04</h3>
+      <h3 class="m-0">⌨️ MEQ Data Entry 1.05</h3>
     </div>
   </div>
 
   <div class="container">
     
+    <!-- SECTION 1: หน้าโหลดข้อมูลและเลือกข้อสอบ -->
     <div id="setupSection" class="card p-4 mb-4 mx-auto" style="max-width: 600px;">
       <h5 class="mb-3 text-primary border-bottom pb-2">📥 โหลดชุดข้อสอบเพื่อเริ่มคีย์ข้อมูล</h5>
-      
-    <div class="mb-3">
+      <div class="mb-4">
         <label class="form-label fw-bold">เลือกชุดข้อสอบ (MEQ ID):</label>
         <select id="loadMeqId" class="form-select form-select-lg border-primary shadow-sm">
           <option value="">⏳ กำลังดึงข้อมูลข้อสอบจากระบบ...</option>
         </select>
       </div>
-      
-      <button class="btn btn-primary btn-lg w-100 fw-bold" onclick="startDataEntry()">🚀 เริ่มต้นกรอกข้อมูล</button>
+      <button class="btn btn-primary btn-lg w-100 fw-bold shadow-sm" onclick="startDataEntry()">🚀 เริ่มต้นกรอกข้อมูล</button>
     </div>
 
-    <div class="card border-primary mb-4">
+    <!-- SECTION 2: หน้าฟอร์มกรอกข้อมูล (แสดงทุกข้อย่อย) -->
+    <div id="entrySection" style="display: none;">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <button class="btn btn-outline-danger fw-bold shadow-sm" onclick="exitEntry()">🚪 ออก / โหลดชุดใหม่</button>
+        <span class="badge bg-secondary fs-6 shadow-sm" id="statusBadge">พร้อมทำงาน</span>
+      </div>
+
+      <div class="card border-primary mb-4">
+        <!-- แถบหัวข้อ -->
         <div class="card-header bg-primary text-white p-3 text-center">
           <h5 class="mb-0 fw-bold" id="qLabel">รหัสข้อสอบ: - </h5>
         </div>
         
         <div class="card-body text-center p-4 bg-white">
+          <!-- แสดงรหัสนักเรียนปัจจุบัน -->
           <div class="mb-4">
             <span class="badge bg-info text-dark fs-4 px-4 py-2 shadow-sm rounded-pill" id="sLabel">นักศึกษา: R01</span>
           </div>
 
+          <!-- กล่องบรรจุข้อย่อยทั้งหมด จะถูกสร้างด้วย JavaScript ที่นี่ -->
           <div id="questionsContainer" class="mb-4">
-             </div>
+             <!-- กล่อง Textarea จะเรียงกันลงมาที่นี่ -->
+          </div>
 
           <hr>
+          <!-- ปุ่มเลื่อนนักเรียน (Student Nav) และปุ่ม Save -->
           <div class="d-flex justify-content-center flex-wrap gap-2 mt-4">
-            <button class="btn btn-secondary btn-nav fw-bold" onclick="changeStudent('TOP')">⏮ Top (1)</button>
-            <button class="btn btn-outline-secondary btn-nav fw-bold" onclick="changeStudent('PREV')">◀ กลับ</button>
+            <button class="btn btn-secondary btn-nav fw-bold shadow-sm" onclick="changeStudent('TOP')">⏮ Top (1)</button>
+            <button class="btn btn-outline-secondary btn-nav fw-bold shadow-sm" onclick="changeStudent('PREV')">◀ กลับ</button>
             
+            <!-- ปุ่มบันทึก -->
             <button id="btnSave" class="btn btn-success fw-bold px-5 mx-2 shadow" style="font-size: 1.2rem;" onclick="saveAnswer()">💾 บันทึกคนนี้ (SAVE)</button>
             
-            <button class="btn btn-outline-secondary btn-nav fw-bold" onclick="changeStudent('NEXT')">ถัดไป ▶</button>
-            <button class="btn btn-secondary btn-nav fw-bold" onclick="changeStudent('LAST')">Last (32) ⏭</button>
+            <button class="btn btn-outline-secondary btn-nav fw-bold shadow-sm" onclick="changeStudent('NEXT')">ถัดไป ▶</button>
+            <button class="btn btn-secondary btn-nav fw-bold shadow-sm" onclick="changeStudent('LAST')">Last (32) ⏭</button>
           </div>
           <p class="text-muted mt-3 mb-0 small">*กด Save แล้วระบบจะบันทึกทุกข้อ และเลื่อนไปนักเรียนคนถัดไปให้อัตโนมัติ</p>
-        </div>
-      </div>
-        
-        <div class="card-body text-center p-4 p-md-5 bg-white">
-          <div class="mb-4">
-            <span class="badge bg-info text-dark fs-4 px-4 py-2 shadow-sm rounded-pill" id="sLabel">นักศึกษา: R01</span>
-          </div>
-
-          <textarea id="answerInput" class="form-control mb-4 shadow-sm border-info bg-light" rows="8" style="font-size: 1.2rem;" placeholder="พิมพ์คำตอบของนักเรียนลงที่นี่..."></textarea>
-
-          <div class="d-flex justify-content-center flex-wrap gap-2">
-            <button class="btn btn-secondary btn-nav fw-bold" onclick="changeStudent('TOP')">⏮ Top (1)</button>
-            <button class="btn btn-outline-secondary btn-nav fw-bold" onclick="changeStudent('PREV')">◀ ก่อนหน้า</button>
-            
-            <button id="btnSave" class="btn btn-success fw-bold px-5 mx-2 shadow" style="font-size: 1.2rem;" onclick="saveAnswer()">💾 SAVE</button>
-            
-            <button class="btn btn-outline-secondary btn-nav fw-bold" onclick="changeStudent('NEXT')">ถัดไป ▶</button>
-            <button class="btn btn-secondary btn-nav fw-bold" onclick="changeStudent('LAST')">Last (32) ⏭</button>
-          </div>
-          <p class="text-muted mt-3 mb-0 small">*กด Save แล้วระบบจะเลื่อนไปนักเรียนคนถัดไปให้อัตโนมัติ</p>
         </div>
       </div>
     </div>
 
   </div>
 
+  <!-- Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.3/dist/sweetalert2.all.min.js"></script>
 
   <script>
     // ==========================================
-    // 🔴 1. ใส่ URL ของ Google Apps Script ของคุณที่นี่
+    // 🔴 1. ใส่ URL ของ Google Apps Script ของคุณที่นี่ (ต้องลงท้ายด้วย /exec)
     // ==========================================
     const GAS_URL = "https://script.google.com/macros/s/AKfycbwXE0Jp7biIPiuWrjQ2i8PWcrp9aiHYkfAsTeO32lGIng7mCACAMQou2xFlc8NKvd91/exec"; 
 
     // ตัวแปรเก็บข้อมูล
     let questionsData = [];
-    let currentQIndex = 0;
     let currentSNum = 1;
 
-   // ==========================================
+    // ==========================================
     // 2. ฟังก์ชันติดต่อ Backend (อัปเดตแก้ปัญหา 405 CORS & Redirect)
     // ==========================================
     async function callAPI(action, payload = {}) {
@@ -112,10 +107,8 @@
       try {
         const response = await fetch(GAS_URL, {
           method: 'POST',
-          // 🟢 เพิ่ม 2 บรรทัดนี้เพื่อแก้ปัญหา 405 Not Allowed จาก Google
           headers: { "Content-Type": "text/plain;charset=utf-8" },
           redirect: "follow", 
-          
           body: JSON.stringify({ action: action, payload: payload })
         });
         
@@ -135,7 +128,31 @@
     }
 
     // ==========================================
-    // 3. ฟังก์ชันโหลดข้อมูลข้อสอบ
+    // 3. ฟังก์ชันดึงข้อมูลข้อสอบมาใส่ Dropdown ทันทีที่โหลดหน้าเว็บเสร็จ
+    // ==========================================
+    window.onload = async function() {
+      await loadMeqDropdown();
+    };
+
+    async function loadMeqDropdown() {
+      const select = document.getElementById('loadMeqId');
+      const res = await callAPI('getMeqIdListForEntry');
+      
+      if (res.success && res.data.length > 0) {
+        select.innerHTML = '<option value="ALL">-- โหลดข้อสอบทั้งหมดในระบบ (ALL) --</option>';
+        res.data.forEach(item => {
+          let option = document.createElement('option');
+          option.value = item.meqId;
+          option.text = `ข้อ ${item.no} (รหัส: ${item.meqId})`;
+          select.appendChild(option);
+        });
+      } else {
+        select.innerHTML = '<option value="ALL">-- ยังไม่มีข้อมูลข้อสอบในระบบ --</option>';
+      }
+    }
+
+    // ==========================================
+    // 4. ฟังก์ชันเริ่มโหลดชุดข้อสอบเพื่อเข้าสู่หน้ากรอกข้อมูล
     // ==========================================
     async function startDataEntry() {
       const meqId = document.getElementById('loadMeqId').value.trim() || "ALL";
@@ -147,7 +164,6 @@
 
       if (res.success && res.data.length > 0) {
         questionsData = res.data;
-        currentQIndex = 0;
         currentSNum = 1;
         
         // สลับหน้าจอ
@@ -161,7 +177,7 @@
     }
 
     // ==========================================
-    // 4. ฟังก์ชันวาดหน้าจอ (Render หลายข้อในหน้าเดียว)
+    // 5. ฟังก์ชันวาดหน้าจอ (Render หลายข้อย่อยในหน้าเดียว)
     // ==========================================
     function renderUI() {
       if(questionsData.length === 0) return;
@@ -187,12 +203,12 @@
         `;
       });
 
-      // นำ Cursor ไปกระพริบรอที่ข้อ 1 ทันที
+      // นำ Cursor ไปกระพริบรอที่ข้อแรกทันที
       if(document.getElementById('ans_0')) document.getElementById('ans_0').focus();
     }
 
     // ==========================================
-    // 5. ระบบนำทางนักเรียน (Navigation)
+    // 6. ระบบนำทางนักเรียน (Navigation)
     // ==========================================
     function changeStudent(action) {
       if (action === 'TOP') currentSNum = 1;
@@ -203,7 +219,7 @@
     }
 
     // ==========================================
-    // 6. ฟังก์ชันบันทึกข้อมูลแบบหลายข้อ (Bulk Save)
+    // 7. ฟังก์ชันบันทึกข้อมูลแบบหลายข้อ (Bulk Save)
     // ==========================================
     async function saveAnswer() {
       let sKey = "R" + currentSNum.toString().padStart(2, '0');
@@ -226,7 +242,7 @@
       status.className = 'badge bg-warning text-dark fs-6';
       status.innerText = 'กำลังบันทึก...';
 
-      // ยิงข้อมูลทั้ง Array ไปเซฟที่ Backend ครั้งเดียว (เร็วและประหยัด API)
+      // ยิงข้อมูลทั้ง Array ไปเซฟที่ Backend ครั้งเดียว
       const res = await callAPI('saveMultipleAnswers', { studentColIndex: targetCol, answers: answersToSave });
       
       btn.innerHTML = '💾 บันทึกคนนี้ (SAVE)';
@@ -250,52 +266,24 @@
     }
 
     // ==========================================
-    // 7. ออกจากหน้าฟอร์ม
+    // 8. ออกจากหน้าฟอร์ม
     // ==========================================
     function exitEntry() {
       Swal.fire({
-        title: 'ต้องการออกใช่หรือไม่?', text: "ระบบจะกลับไปหน้าตั้งค่าเพื่อโหลดชุดข้อสอบใหม่", icon: 'question',
-        showCancelButton: true, confirmButtonText: 'ใช่, ออกเลย'
+        title: 'ต้องการออกใช่หรือไม่?', 
+        text: "ระบบจะกลับไปหน้าตั้งค่าเพื่อโหลดชุดข้อสอบใหม่", 
+        icon: 'question',
+        showCancelButton: true, 
+        confirmButtonText: 'ใช่, ออกเลย'
       }).then((result) => {
         if (result.isConfirmed) {
           document.getElementById('setupSection').style.display = 'block';
           document.getElementById('entrySection').style.display = 'none';
-          document.getElementById('loadMeqId').value = 'ALL';
+          document.getElementById('loadMeqId').value = 'ALL'; // รีเซ็ต Dropdown
           questionsData = [];
         }
       });
     }
-
-    // ==========================================
-    // ฟังก์ชันดึงข้อมูลข้อสอบมาใส่ Dropdown ทันทีที่โหลดหน้าเว็บเสร็จ
-    // ==========================================
-    window.onload = async function() {
-      await loadMeqDropdown();
-    };
-
-    async function loadMeqDropdown() {
-      const select = document.getElementById('loadMeqId');
-      
-      // ดึงข้อมูลจาก API
-      const res = await callAPI('getMeqIdListForEntry');
-      
-      if (res.success && res.data.length > 0) {
-        // เคลียร์ค่าเดิมและใส่ตัวเลือกแรก
-        select.innerHTML = '<option value="ALL">-- โหลดข้อสอบทั้งหมดในระบบ (ALL) --</option>';
-        
-        // วนลูปนำข้อมูลข้อสอบมาสร้างเป็น Dropdown list
-        res.data.forEach(item => {
-          let option = document.createElement('option');
-          option.value = item.meqId;
-          option.text = `ข้อ ${item.no} (รหัส: ${item.meqId})`;
-          select.appendChild(option);
-        });
-      } else {
-        // ถ้าไม่พบข้อสอบในชีตเลย
-        select.innerHTML = '<option value="ALL">-- ยังไม่มีข้อมูลข้อสอบในระบบ --</option>';
-      }
-    }
-    
   </script>
 </body>
 </html>
