@@ -90,19 +90,31 @@
     let currentQIndex = 0;
     let currentSNum = 1;
 
-    // ==========================================
-    // 2. ฟังก์ชันติดต่อ Backend (API Wrapper)
+ // ==========================================
+    // 2. ฟังก์ชันติดต่อ Backend (อัปเดตระบบช่วยหาบั๊ก)
     // ==========================================
     async function callAPI(action, payload = {}) {
       if(GAS_URL === "https://script.google.com/macros/s/AKfycbwXE0Jp7biIPiuWrjQ2i8PWcrp9aiHYkfAsTeO32lGIng7mCACAMQou2xFlc8NKvd91/exec" || GAS_URL === "") {
-        throw new Error("ยังไม่ได้ใส่ GAS_URL ในโค้ดครับ");
+        throw new Error("คุณยังไม่ได้ใส่ GAS_URL ในโค้ดครับ");
       }
       try {
         const response = await fetch(GAS_URL, {
           method: 'POST',
           body: JSON.stringify({ action: action, payload: payload })
         });
-        return await response.json();
+        
+        // อ่านข้อมูลที่ Google ส่งมาเป็นข้อความ (Text) ก่อน
+        const rawText = await response.text();
+        
+        try {
+          // พยายามแปลงเป็น JSON
+          return JSON.parse(rawText);
+        } catch (parseError) {
+          // ถ้าแปลงไม่ได้ แสดงว่า Google ส่ง HTML กลับมา (Unexpected token '<')
+          console.error("Google ส่งข้อมูลกลับมาผิดปกติ (ไม่ใช่ JSON):", rawText);
+          throw new Error("การเชื่อมต่อผิดพลาด! (ตรวจสอบ Console Log เพื่อดูรายละเอียด)");
+        }
+        
       } catch (error) {
         console.error("API Error:", error);
         return { success: false, message: error.message };
