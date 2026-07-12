@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MEQ Data Entry-กรอกคำตอบ 1.00</title>
+  <title>MEQ Data Entry-กรอกคำตอบ 1.01</title>
   
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.3/dist/sweetalert2.min.css" rel="stylesheet">
@@ -27,10 +27,14 @@
     
     <div id="setupSection" class="card p-4 mb-4 mx-auto" style="max-width: 600px;">
       <h5 class="mb-3 text-primary border-bottom pb-2">📥 โหลดชุดข้อสอบเพื่อเริ่มคีย์ข้อมูล</h5>
-      <div class="mb-3">
-        <label class="form-label fw-bold">กรอกรหัสข้อสอบ (MEQ ID):</label>
-        <input type="text" id="loadMeqId" class="form-control form-control-lg" placeholder="เช่น MEQ-68-001 (หรือเว้นว่างเพื่อโหลดทั้งหมด)">
+      
+    <div class="mb-3">
+        <label class="form-label fw-bold">เลือกชุดข้อสอบ (MEQ ID):</label>
+        <select id="loadMeqId" class="form-select form-select-lg border-primary shadow-sm">
+          <option value="">⏳ กำลังดึงข้อมูลข้อสอบจากระบบ...</option>
+        </select>
       </div>
+      
       <button class="btn btn-primary btn-lg w-100 fw-bold" onclick="startDataEntry()">🚀 เริ่มต้นกรอกข้อมูล</button>
     </div>
 
@@ -226,6 +230,37 @@
         }
       });
     }
+
+    // ==========================================
+    // ฟังก์ชันดึงข้อมูลข้อสอบมาใส่ Dropdown ทันทีที่โหลดหน้าเว็บเสร็จ
+    // ==========================================
+    window.onload = async function() {
+      await loadMeqDropdown();
+    };
+
+    async function loadMeqDropdown() {
+      const select = document.getElementById('loadMeqId');
+      
+      // ดึงข้อมูลจาก API
+      const res = await callAPI('getMeqIdListForEntry');
+      
+      if (res.success && res.data.length > 0) {
+        // เคลียร์ค่าเดิมและใส่ตัวเลือกแรก
+        select.innerHTML = '<option value="ALL">-- โหลดข้อสอบทั้งหมดในระบบ (ALL) --</option>';
+        
+        // วนลูปนำข้อมูลข้อสอบมาสร้างเป็น Dropdown list
+        res.data.forEach(item => {
+          let option = document.createElement('option');
+          option.value = item.meqId;
+          option.text = `ข้อ ${item.no} (รหัส: ${item.meqId})`;
+          select.appendChild(option);
+        });
+      } else {
+        // ถ้าไม่พบข้อสอบในชีตเลย
+        select.innerHTML = '<option value="ALL">-- ยังไม่มีข้อมูลข้อสอบในระบบ --</option>';
+      }
+    }
+    
   </script>
 </body>
 </html>
