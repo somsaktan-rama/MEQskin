@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MEQ Data Entry-กรอกคำตอบ 1.02</title>
+  <title>MEQ Data Entry-กรอกคำตอบ 1.03</title>
   
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.3/dist/sweetalert2.min.css" rel="stylesheet">
@@ -83,36 +83,37 @@
     // ==========================================
     // 🔴 1. ใส่ URL ของ Google Apps Script ของคุณที่นี่
     // ==========================================
-    const GAS_URL = "วาง_URL_WEB_APP_ของคุณที่นี่"; 
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbwXE0Jp7biIPiuWrjQ2i8PWcrp9aiHYkfAsTeO32lGIng7mCACAMQou2xFlc8NKvd91/exec"; 
 
     // ตัวแปรเก็บข้อมูล
     let questionsData = [];
     let currentQIndex = 0;
     let currentSNum = 1;
 
- // ==========================================
-    // 2. ฟังก์ชันติดต่อ Backend (อัปเดตระบบช่วยหาบั๊ก)
+   // ==========================================
+    // 2. ฟังก์ชันติดต่อ Backend (อัปเดตแก้ปัญหา 405 CORS & Redirect)
     // ==========================================
     async function callAPI(action, payload = {}) {
-      if(GAS_URL === "https://script.google.com/macros/s/AKfycbwXE0Jp7biIPiuWrjQ2i8PWcrp9aiHYkfAsTeO32lGIng7mCACAMQou2xFlc8NKvd91/exec" || GAS_URL === "") {
+      if(GAS_URL === "วาง_URL_WEB_APP_ของคุณที่นี่" || GAS_URL === "") {
         throw new Error("คุณยังไม่ได้ใส่ GAS_URL ในโค้ดครับ");
       }
       try {
         const response = await fetch(GAS_URL, {
           method: 'POST',
+          // 🟢 เพิ่ม 2 บรรทัดนี้เพื่อแก้ปัญหา 405 Not Allowed จาก Google
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          redirect: "follow", 
+          
           body: JSON.stringify({ action: action, payload: payload })
         });
         
-        // อ่านข้อมูลที่ Google ส่งมาเป็นข้อความ (Text) ก่อน
         const rawText = await response.text();
         
         try {
-          // พยายามแปลงเป็น JSON
           return JSON.parse(rawText);
         } catch (parseError) {
-          // ถ้าแปลงไม่ได้ แสดงว่า Google ส่ง HTML กลับมา (Unexpected token '<')
           console.error("Google ส่งข้อมูลกลับมาผิดปกติ (ไม่ใช่ JSON):", rawText);
-          throw new Error("การเชื่อมต่อผิดพลาด! (ตรวจสอบ Console Log เพื่อดูรายละเอียด)");
+          throw new Error("การเชื่อมต่อผิดพลาด! (ตรวจสอบ Console Log)");
         }
         
       } catch (error) {
