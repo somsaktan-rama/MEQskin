@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MEQ Data Entry-กรอกคำตอบ 1.00</title>
+  
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.3/dist/sweetalert2.min.css" rel="stylesheet">
+  
+  <style>
+    body { background-color: #f4f7f6; font-family: 'Sarabun', sans-serif; }
+    .header-banner { background: linear-gradient(135deg, #0d6efd, #0dcaf0); color: white; padding: 20px 0; }
+    .card { border-radius: 12px; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+    .btn-nav { width: 100px; }
+  </style>
+</head>
+<body>
+
+  <div class="header-banner mb-4 shadow-sm">
+    <div class="container d-flex justify-content-between align-items-center">
+      <h3 class="m-0">⌨️ MEQ Data Entry (ระบบกรอกคำตอบนักศึกษา)</h3>
+    </div>
+  </div>
+
+  <div class="container">
+    
+    <div id="setupSection" class="card p-4 mb-4 mx-auto" style="max-width: 600px;">
+      <h5 class="mb-3 text-primary border-bottom pb-2">📥 โหลดชุดข้อสอบเพื่อเริ่มคีย์ข้อมูล</h5>
+      <div class="mb-3">
+        <label class="form-label fw-bold">กรอกรหัสข้อสอบ (MEQ ID):</label>
+        <input type="text" id="loadMeqId" class="form-control form-control-lg" placeholder="เช่น MEQ-68-001 (หรือเว้นว่างเพื่อโหลดทั้งหมด)">
+      </div>
+      <button class="btn btn-primary btn-lg w-100 fw-bold" onclick="startDataEntry()">🚀 เริ่มต้นกรอกข้อมูล</button>
+    </div>
+
+    <div id="entrySection" style="display: none;">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <button class="btn btn-outline-danger fw-bold" onclick="exitEntry()">🚪 ออก / โหลดชุดใหม่</button>
+        <span class="badge bg-secondary fs-6" id="statusBadge">พร้อมทำงาน</span>
+      </div>
+
+      <div class="card border-primary mb-4">
+        <div class="card-header bg-primary text-white d-flex flex-wrap justify-content-between align-items-center p-3">
+          <h5 class="mb-0 fw-bold" id="qLabel">ข้อ: - | รหัส: - | ข้อย่อย: -</h5>
+          <div class="mt-2 mt-md-0">
+            <button class="btn btn-sm btn-light text-primary fw-bold me-2" onclick="changeQuestion(-1)">◀ ข้อก่อนหน้า</button>
+            <button class="btn btn-sm btn-light text-primary fw-bold" onclick="changeQuestion(1)">ข้อถัดไป ▶</button>
+          </div>
+        </div>
+        
+        <div class="card-body text-center p-4 p-md-5 bg-white">
+          <div class="mb-4">
+            <span class="badge bg-info text-dark fs-4 px-4 py-2 shadow-sm rounded-pill" id="sLabel">นักศึกษา: R01</span>
+          </div>
+
+          <textarea id="answerInput" class="form-control mb-4 shadow-sm border-info bg-light" rows="8" style="font-size: 1.2rem;" placeholder="พิมพ์คำตอบของนักเรียนลงที่นี่..."></textarea>
+
+          <div class="d-flex justify-content-center flex-wrap gap-2">
+            <button class="btn btn-secondary btn-nav fw-bold" onclick="changeStudent('TOP')">⏮ Top (1)</button>
+            <button class="btn btn-outline-secondary btn-nav fw-bold" onclick="changeStudent('PREV')">◀ ก่อนหน้า</button>
+            
+            <button id="btnSave" class="btn btn-success fw-bold px-5 mx-2 shadow" style="font-size: 1.2rem;" onclick="saveAnswer()">💾 SAVE</button>
+            
+            <button class="btn btn-outline-secondary btn-nav fw-bold" onclick="changeStudent('NEXT')">ถัดไป ▶</button>
+            <button class="btn btn-secondary btn-nav fw-bold" onclick="changeStudent('LAST')">Last (32) ⏭</button>
+          </div>
+          <p class="text-muted mt-3 mb-0 small">*กด Save แล้วระบบจะเลื่อนไปนักเรียนคนถัดไปให้อัตโนมัติ</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.3/dist/sweetalert2.all.min.js"></script>
+
+  <script>
+    // ==========================================
+    // 🔴 1. ใส่ URL ของ Google Apps Script ของคุณที่นี่
+    // ==========================================
+    const GAS_URL = "วาง_URL_WEB_APP_ของคุณที่นี่"; 
+
+    // ตัวแปรเก็บข้อมูล
+    let questionsData = [];
+    let currentQIndex = 0;
+    let currentSNum = 1;
+
+    // ==========================================
+    // 2. ฟังก์ชันติดต่อ Backend (API Wrapper)
+    // ==========================================
+    async function callAPI(action, payload = {}) {
+      if(GAS_URL === "https://script.google.com/macros/s/AKfycbwXE0Jp7biIPiuWrjQ2i8PWcrp9aiHYkfAsTeO32lGIng7mCACAMQou2xFlc8NKvd91/exec" || GAS_URL === "") {
+        throw new Error("ยังไม่ได้ใส่ GAS_URL ในโค้ดครับ");
+      }
+      try {
+        const response = await fetch(GAS_URL, {
+          method: 'POST',
+          body: JSON.stringify({ action: action, payload: payload })
+        });
+        return await response.json();
+      } catch (error) {
+        console.error("API Error:", error);
+        return { success: false, message: error.message };
+      }
+    }
+
+    // ==========================================
+    // 3. ฟังก์ชันโหลดข้อมูลข้อสอบ
+    // ==========================================
+    async function startDataEntry() {
+      const meqId = document.getElementById('loadMeqId').value.trim() || "ALL";
+      
+      Swal.fire({ title: 'กำลังโหลดข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+      
+      const res = await callAPI('getStudentAnswers', meqId);
+      Swal.close();
+
+      if (res.success && res.data.length > 0) {
+        questionsData = res.data;
+        currentQIndex = 0;
+        currentSNum = 1;
+        
+        // สลับหน้าจอ
+        document.getElementById('setupSection').style.display = 'none';
+        document.getElementById('entrySection').style.display = 'block';
+        
+        renderUI();
+      } else {
+        Swal.fire('ไม่พบข้อมูล', res.message || 'ไม่พบข้อสอบที่ระบุในชีต Student_Answers', 'warning');
+      }
+    }
+
+    // ==========================================
+    // 4. ฟังก์ชันวาดหน้าจอ (Render)
+    // ==========================================
+    function renderUI() {
+      if(questionsData.length === 0) return;
+      
+      let q = questionsData[currentQIndex];
+      let sKey = "R" + currentSNum.toString().padStart(2, '0');
+
+      document.getElementById('qLabel').innerText = `ข้อ: ${q.no} | รหัส: ${q.meq_id} | ข้อย่อย: ${q.sub_question}`;
+      document.getElementById('sLabel').innerText = `นักศึกษา: ${sKey}`;
+      
+      const inputEl = document.getElementById('answerInput');
+      inputEl.value = q.answers[sKey] || "";
+      inputEl.focus(); // นำ Cursor ไปกระพริบรอพิมพ์ทันที
+    }
+
+    // ==========================================
+    // 5. ระบบนำทาง (Navigation)
+    // ==========================================
+    function changeQuestion(step) {
+      let newIdx = currentQIndex + step;
+      if(newIdx >= 0 && newIdx < questionsData.length) {
+        currentQIndex = newIdx;
+        currentSNum = 1; 
+        renderUI();
+      }
+    }
+
+    function changeStudent(action) {
+      if (action === 'TOP') currentSNum = 1;
+      else if (action === 'LAST') currentSNum = 32;
+      else if (action === 'PREV' && currentSNum > 1) currentSNum--;
+      else if (action === 'NEXT' && currentSNum < 32) currentSNum++;
+      renderUI();
+    }
+
+    // ==========================================
+    // 6. ฟังก์ชันบันทึกข้อมูล (Save)
+    // ==========================================
+    async function saveAnswer() {
+      let q = questionsData[currentQIndex];
+      let sKey = "R" + currentSNum.toString().padStart(2, '0');
+      let answerText = document.getElementById('answerInput').value;
+
+      q.answers[sKey] = answerText; // อัปเดตใน Memory
+      let targetCol = 3 + currentSNum; 
+      
+      const btn = document.getElementById('btnSave');
+      const status = document.getElementById('statusBadge');
+      
+      btn.innerHTML = '⏳ Saving...';
+      btn.disabled = true;
+      status.className = 'badge bg-warning text-dark fs-6';
+      status.innerText = 'กำลังบันทึก...';
+
+      // ยิงข้อมูลไปเซฟที่ Backend
+      const res = await callAPI('saveSingleAnswer', { rowIndex: q.rowIndex, studentColIndex: targetCol, answer: answerText });
+      
+      btn.innerHTML = '💾 SAVE';
+      btn.disabled = false;
+
+      if (res.success) {
+        status.className = 'badge bg-success fs-6';
+        status.innerText = 'บันทึกสำเร็จ';
+        
+        // เลื่อนนักเรียนอัตโนมัติ
+        if (currentSNum < 32) {
+          changeStudent('NEXT'); 
+        } else {
+          Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'เสร็จสิ้นคนที่ 32 แล้ว!', showConfirmButton: false, timer: 2000 });
+        }
+      } else {
+        status.className = 'badge bg-danger fs-6';
+        status.innerText = 'บันทึกพลาด!';
+        Swal.fire('ข้อผิดพลาด', 'ไม่สามารถบันทึกข้อมูลได้', 'error');
+      }
+    }
+
+    // ==========================================
+    // 7. ออกจากหน้าฟอร์ม
+    // ==========================================
+    function exitEntry() {
+      Swal.fire({
+        title: 'ต้องการออกใช่หรือไม่?', text: "ระบบจะกลับไปหน้าตั้งค่าเพื่อโหลดชุดข้อสอบใหม่", icon: 'question',
+        showCancelButton: true, confirmButtonText: 'ใช่, ออกเลย'
+      }).then((result) => {
+        if (result.isConfirmed) {
+          document.getElementById('setupSection').style.display = 'block';
+          document.getElementById('entrySection').style.display = 'none';
+          document.getElementById('loadMeqId').value = '';
+          questionsData = [];
+        }
+      });
+    }
+  </script>
+</body>
+</html>
