@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>MEQ Portal System V1.28</title>
+  <title>MEQ Portal System V1.29</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
@@ -334,15 +334,21 @@
     }
   }
 
-  // ==========================================
+// ==========================================
   // ฟังก์ชันจัดการปุ่ม "เข้าสู่ระบบ" บน Modal
   // ==========================================
   async function handleLogin() {
-    const inputId = document.getElementById('loginInput').value.trim();
+    const input = document.getElementById('loginInput'); // ดึง element มาก่อน
+    const inputId = input.value.trim();
+    
     if (!inputId) {
-      Swal.fire('แจ้งเตือน', 'กรุณากรอก MDID ก่อนครับ', 'warning');
+      Swal.fire('แจ้งเตือน', 'กรุณากรอก MDID / RamaID ก่อนครับ', 'warning');
       return;
     }
+
+    // 🟢 เพิ่มบรรทัดนี้: เอาเคอร์เซอร์ออกจากช่องกรอกรหัส (แก้ Error aria-hidden)
+    input.blur(); 
+    if (document.activeElement) document.activeElement.blur(); // สั่งเผื่อปุ่ม Enter ด้วย
 
     Swal.fire({ title: 'กำลังยืนยันตัวตน...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
@@ -355,7 +361,7 @@
     if (res.success) {
        currentUser = res.user;
        
-       // 🟢 ล็อกอินสำเร็จ สั่งปิด Modal ทิ้ง!
+       // ล็อกอินสำเร็จ สั่งปิด Modal ทิ้ง
        loginModalInstance.hide();
        
        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: res.message || 'เข้าสู่ระบบสำเร็จ', showConfirmButton: false, timer: 2000 });
