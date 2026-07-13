@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MEQ Data Entry-1.06</title>
+  <title>MEQ Data Entry-1.07</title>
   
   <!-- Bootstrap 5 CSS -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -22,7 +22,7 @@
   <!-- ส่วนหัว -->
   <div class="header-banner mb-4 shadow-sm">
     <div class="container d-flex justify-content-between align-items-center">
-      <h3 class="m-0">⌨️ MEQ Data Entry 1.06</h3>
+      <h3 class="m-0">⌨️ MEQ Data Entry 1.07</h3>
     </div>
   </div>
 
@@ -176,8 +176,8 @@
       }
     }
 
-    // ==========================================
-    // 5. ฟังก์ชันวาดหน้าจอ (Render พร้อมช่องกรอกคะแนน)
+// ==========================================
+    // 5. ฟังก์ชันวาดหน้าจอ (เพิ่มปุ่มดูโจทย์และขยายช่องคะแนน)
     // ==========================================
     function renderUI() {
       if(questionsData.length === 0) return;
@@ -189,19 +189,25 @@
       document.getElementById('sLabel').innerText = `นักศึกษา: ${sKey}`;
       
       const container = document.getElementById('questionsContainer');
-      container.innerHTML = '';
+      container.innerHTML = ''; 
       
       questionsData.forEach((q, index) => {
         let ansVal = q.answers[sKey] || "";
-        let scoreVal = q.scores[sKey] || ""; // ดึงคะแนนมา
+        let scoreVal = q.scores[sKey] || ""; 
+        
+        // แปลงข้อความโจทย์ให้ปลอดภัยก่อนเอาไปใส่ปุ่ม (ดักจับ Single/Double Quotes และการขึ้นบรรทัดใหม่)
+        let safeQText = q.question_text ? q.question_text.replace(/'/g, "\\'").replace(/"/g, "&quot;").replace(/\n/g, "<br>") : "-";
         
         container.innerHTML += `
           <div class="mb-4 text-start p-3 border rounded bg-light shadow-sm">
-            <div class="d-flex justify-content-between align-items-center mb-2">
-              <label class="form-label fw-bold text-primary fs-5 mb-0">ข้อย่อย ${q.sub_question}:</label>
+            <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+              <div class="d-flex align-items-center">
+                <label class="form-label fw-bold text-primary fs-5 mb-0 me-2">ข้อย่อย ${q.sub_question}:</label>
+                <button class="btn btn-sm btn-outline-info fw-bold rounded-pill px-3 shadow-sm" onclick="showQuestionText('${safeQText}')">👁️ ดูโจทย์</button>
+              </div>
               <div class="d-flex align-items-center">
                 <label class="fw-bold me-2 text-success">คะแนน:</label>
-                <input type="number" id="score_${index}" class="form-control border-success text-center fw-bold" style="width: 80px;" value="${scoreVal}" step="0.5" min="0" placeholder="0">
+                <input type="number" id="score_${index}" class="form-control border-success text-center fw-bold fs-5" style="width: 120px;" value="${scoreVal}" step="0.5" min="0" placeholder="0">
               </div>
             </div>
             
@@ -213,6 +219,17 @@
       if(document.getElementById('ans_0')) document.getElementById('ans_0').focus();
     }
 
+    // 🟢 ฟังก์ชันสำหรับ Pop-up แสดงข้อความโจทย์
+    function showQuestionText(text) {
+      Swal.fire({
+        title: '📖 ข้อความโจทย์',
+        html: `<div class="text-start fs-5 mt-3 p-3 bg-light border rounded">${text}</div>`,
+        icon: 'info',
+        confirmButtonText: 'ปิด',
+        width: '600px'
+      });
+    }
+    
     // ==========================================
     // 6. ระบบนำทางนักเรียน (Navigation)
     // ==========================================
@@ -224,25 +241,41 @@
       renderUI();
     }
 
-    // ==========================================
-    // 7. ฟังก์ชันบันทึกข้อมูลแบบหลายข้อ (Bulk Save + Score)
+   // ==========================================
+    // 7. ฟังก์ชันบันทึกข้อมูล (เพิ่มระบบเช็คคะแนนรวม <= 100)
     // ==========================================
     async function saveAnswer() {
       let sKey = "R" + currentSNum.toString().padStart(2, '0');
       let targetCol = 3 + currentSNum; 
       
       let answersToSave = [];
+      let totalScore = 0; // 🟢 ตัวแปรสำหรับคำนวณคะแนนรวม
       
-      // ดึงทั้งคำตอบและคะแนนจากทุกกล่อง
-      questionsData.forEach((q, index) => {
+      for (let index = 0; index < questionsData.length; index++) {
+        let q = questionsData[index];
         let answerText = document.getElementById(`ans_${index}`).value;
-        let scoreValue = document.getElementById(`score_${index}`).value; // 🟢 ดึงค่าคะแนน
+        let scoreValue = document.getElementById(`score_${index}`).value; 
+        
+        // บวกคะแนนรวม
+        let numScore = parseFloat(scoreValue) || 0;
+        totalScore += numScore;
         
         q.answers[sKey] = answerText;
-        q.scores[sKey] = scoreValue; // 🟢 อัปเดตคะแนนลงตัวแปรด้วย
+        q.scores[sKey] = scoreValue; 
         
         answersToSave.push({ rowIndex: q.rowIndex, answer: answerText, score: scoreValue });
-      });
+      }
+      
+      // 🟢 เช็คลิมิต: ถ้าคะแนนรวมเกิน 100 ให้เด้งเตือนและหยุดการบันทึก
+      if (totalScore > 100) {
+        Swal.fire({
+          title: 'คะแนนรวมเกินขีดจำกัด!',
+          text: `คะแนนรวมปัจจุบันคือ ${totalScore} คะแนน (ต้องไม่เกิน 100)`,
+          icon: 'warning',
+          confirmButtonText: 'แก้ไขคะแนน'
+        });
+        return; // ออกจากฟังก์ชัน ไม่ส่งข้อมูลไปเซฟ
+      }
       
       const btn = document.getElementById('btnSave');
       const status = document.getElementById('statusBadge');
@@ -272,7 +305,7 @@
         Swal.fire('ข้อผิดพลาด', 'ไม่สามารถบันทึกข้อมูลได้', 'error');
       }
     }
-
+    
     // ==========================================
     // 8. ออกจากหน้าฟอร์ม
     // ==========================================
