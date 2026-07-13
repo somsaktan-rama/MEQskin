@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>MEQ Portal System V1.27</title>
+  <title>MEQ Portal System V1.28</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
@@ -35,6 +35,24 @@
 
 <script>
   const API_URL = "https://script.google.com/macros/s/AKfycbwXE0Jp7biIPiuWrjQ2i8PWcrp9aiHYkfAsTeO32lGIng7mCACAMQou2xFlc8NKvd91/exec"; // <--- เปลี่ยน URL ตรงนี้
+// วางไว้ใต้ตัวแปร API_URL
+  async function callAPI(action, payload = {}) {
+    if(!API_URL || API_URL === "") return { success: false, message: "URL ไม่ถูกต้อง" };
+    try {
+      const response = await fetch(API_URL, {
+        method: 'POST',
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        redirect: "follow", 
+        body: JSON.stringify({ action: action, payload: payload })
+      });
+      const rawText = await response.text();
+      try { return JSON.parse(rawText); } 
+      catch (e) { throw new Error("การเชื่อมต่อผิดพลาด (ไม่ใช่ JSON)"); }
+    } catch (error) {
+      console.error("API Error:", error);
+      return { success: false, message: error.message };
+    }
+  }
 </script>
 
 <div class="modal fade" id="loginModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
@@ -738,87 +756,6 @@ function addSubQuestion(data = null) {
     btn.innerHTML = (isEditMode) ? '💾 อัปเดตข้อสอบ (Update MEQ)' : '💾 บันทึกชุดข้อสอบนี้'; 
   }
 
-  // ==========================================
-  // ฟังก์ชันส่วน Export ไปยัง Moodle (Moodle XML)
-  // ==========================================
-  async function exportMEQToMoodle(meqId) {
-    Swal.fire({ 
-      title: 'กำลังเตรียมไฟล์ Export...', 
-      text: 'กำลังรวบรวมข้อสอบและโหลดรูปภาพ กรุณารอสักครู่',
-      allowOutsideClick: false,
-      didOpen: () => Swal.showLoading() 
-    });
-    
-    // ดึงข้อมูลข้อสอบแบบรวมรูปภาพจาก GAS
-    const res = await callAPI('getMEQExportData', meqId, true);
-
-    if (res.success) {
-      Swal.close();
-      let xmlContent = generateMoodleXML(res.master, res.details);
-      downloadFile(`${meqId}_Moodle.xml`, xmlContent);
-      Swal.fire('ดาวน์โหลดสำเร็จ', 'สามารถนำไฟล์ XML นี้ไป Import ใน Moodle ได้เลย', 'success');
-    } else {
-      Swal.fire('ข้อผิดพลาด', res.message, 'error');
-    }
-  }
-
-  // ฟังก์ชันแปลงข้อมูลข้อสอบเป็น Moodle XML Format
-  function generateMoodleXML(master, details) {
-    let xml = `<?xml version="1.0" encoding="UTF-8"?>\n<quiz>\n`;
-
-    // 1. สร้าง Category (หมวดหมู่) ใน Moodle ให้อัตโนมัติ เพื่อความเป็นระเบียบ
-    xml += `
-      <question type="category">
-        <category>
-          <text>$course$/MEQ/${master.meqId} - ${master.subject}</text>
-        </category>
-      </question>\n`;
-
-    // 2. วนลูปสร้างข้อย่อยแต่ละข้อให้เป็น Question แบบ Essay (อัตนัย)
-    details.forEach((dt, index) => {
-      let questionName = `${master.meqId}_${dt.subQuestion}`;
-      
-      // รวมโจทย์หลัก (Scenario Stem) เข้ากับโจทย์ย่อย เพื่อให้นักศึกษาอ่านเข้าใจง่าย
-      let questionTextHTML = `<p><strong>Scenario:</strong> ${master.scenarioStem || '-'}</p>`;
-
-      let filesXML = '';
-      // แทรกรูปภาพ (ถ้ามี)
-      if (dt.imagesData && dt.imagesData.length > 0) {
-        dt.imagesData.forEach(img => {
-          // คำสั่ง @@PLUGINFILE@@ เป็นคำสั่งพิเศษของ Moodle เพื่อให้ชี้ไปที่ไฟล์ภาพที่ฝังไว้
-          questionTextHTML += `<p><img src="@@PLUGINFILE@@/${img.name}" alt="${img.name}" class="img-fluid" /></p>`;
-          filesXML += `      <file name="${img.name}" path="/" encoding="base64">${img.base64}</file>\n`;
-        });
-      }
-
-      questionTextHTML += `<p><strong>Question (${dt.subQuestion}):</strong> ${dt.questionText}</p>`;
-
-      // แปลงขึ้นบรรทัดใหม่ให้เป็น <br> สำหรับ Answer Key
-      let safeAnswerKey = (dt.answerKey || "").replace(/\n/g, '<br>');
-
-      // ประกอบโครงสร้างข้อสอบ 1 ข้อ
-      xml += `
-        <question type="essay">
-          <name>
-            <text>${questionName}</text>
-          </name>
-          <questiontext format="html">
-            <text><![CDATA[${questionTextHTML}]]></text>
-${filesXML}          </questiontext>
-          <generalfeedback format="html">
-            <text><![CDATA[<p><strong>Answer Key (Rubric):</strong><br>${safeAnswerKey}</p><p><em>AI Grading Rubric: ${dt.aiRubric || '-'}</em></p>]]></text>
-          </generalfeedback>
-          <defaultgrade>${dt.maxScore}</defaultgrade>
-          <responseformat>editor</responseformat>
-          <responserequired>1</responserequired>
-          <responsefieldlines>15</responsefieldlines>
-        </question>\n`;
-    });
-
-    xml += `</quiz>`;
-    return xml;
-  }
-
   // ฟังก์ชันสั่งดาวน์โหลดไฟล์ XML ลงเครื่อง
   function downloadFile(filename, text) {
     let element = document.createElement('a');
@@ -1152,7 +1089,7 @@ function openAITestModal() {
       if (result.isConfirmed) {
         
         // 🟢 1. เคลียร์ฟอร์มหลักแบบบังคับค่าว่าง (Bulletproof Clear)
-        const form = document.getElementById('meqForm');
+        const form = document.getElementById('questionForm');
         if (form) {
             form.reset(); // รีเซ็ตฟิลด์ตามระบบสากลก่อน
             
@@ -1225,7 +1162,7 @@ function openAITestModal() {
   // ==========================================
 function createNewMEQ(linkEl) {
     // 1. รีเซ็ตฟอร์มทั้งหมด
-    const form = document.getElementById('meqForm');
+    const form = document.getElementById('QuestionForm');
     if (form) form.reset();
     
     // 2. ปลดล็อกช่อง MEQ ID (เผื่อถูกล็อกตอนกดแก้ไข)
