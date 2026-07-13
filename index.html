@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>MEQ Portal System V1.30</title>
+  <title>MEQ Portal System V1.30 A</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📝</text></svg>">
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -67,7 +67,7 @@
         <p class="text-muted mb-4">เข้าสู่ระบบ หรือ ผูกบัญชี LINE เพื่อใช้งาน</p>
         
         <div class="position-relative mb-3">
-          <input type="password" class="form-control form-control-lg border-primary" id="loginInput" placeholder="กรอก MDID / RamaID" style="padding-right: 40px;">
+          <input type="password" class="form-control form-control-lg border-primary" id="loginInput" placeholder="กรอก  / RamaID" style="padding-right: 40px;">
           <button type="button" class="btn position-absolute top-50 end-0 translate-middle-y text-muted" style="background: none; border: none; z-index: 10;" onclick="toggleLoginVisibility()">👁️</button>
         </div>
         
@@ -335,11 +335,11 @@
     }
   }
 
-// ==========================================
+  // ==========================================
   // ฟังก์ชันจัดการปุ่ม "เข้าสู่ระบบ" บน Modal
   // ==========================================
   async function handleLogin() {
-    const input = document.getElementById('loginInput'); // ดึง element มาก่อน
+    const input = document.getElementById('loginInput');
     const inputId = input.value.trim();
     
     if (!inputId) {
@@ -347,9 +347,9 @@
       return;
     }
 
-    // 🟢 เพิ่มบรรทัดนี้: เอาเคอร์เซอร์ออกจากช่องกรอกรหัส (แก้ Error aria-hidden)
+    // 🟢 เพิ่ม 2 บรรทัดนี้! เอาเคอร์เซอร์ออกจากช่องกรอกรหัส (แก้ Error aria-hidden สีแดง)
     input.blur(); 
-    if (document.activeElement) document.activeElement.blur(); // สั่งเผื่อปุ่ม Enter ด้วย
+    if (document.activeElement) document.activeElement.blur(); 
 
     Swal.fire({ title: 'กำลังยืนยันตัวตน...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
@@ -362,7 +362,6 @@
     if (res.success) {
        currentUser = res.user;
        
-       // ล็อกอินสำเร็จ สั่งปิด Modal ทิ้ง
        loginModalInstance.hide();
        
        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: res.message || 'เข้าสู่ระบบสำเร็จ', showConfirmButton: false, timer: 2000 });
@@ -370,6 +369,7 @@
        switchView('bankView');
        loadMEQBank();
     } else {
+       // ถ้าหา MDID ไม่เจอในชีต staff จะเด้ง Alert ตรงนี้ครับ
        Swal.fire('ข้อผิดพลาด', res.message, 'error');
     }
   }
