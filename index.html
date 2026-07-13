@@ -3,9 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>MEQ Portal System V1.26</title>
+  <title>MEQ Portal System V1.27</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <style>
     body { background-color: #f8f9fa; font-family: 'Sarabun', sans-serif; }
     .sidebar { height: 100vh; background-color: #2c3e50; color: white; padding-top: 20px; position: fixed; }
@@ -38,17 +39,25 @@
 
 <div class="modal fade" id="loginModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header bg-primary text-white"><h5 class="modal-title">เข้าสู่ระบบ (MEQ Portal)</h5></div>
-      
-      <div class="modal-body">
-        <input type="password" class="form-control mb-3" id="loginInput" placeholder="กรอก MDID">
-        <button class="btn btn-primary w-100" onclick="handleLogin()">เข้าสู่ระบบ</button>
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title fw-bold">เข้าสู่ระบบ (MEQ Portal)</h5>
       </div>
       
+      <div class="modal-body text-center p-4">
+        <p class="text-muted mb-4">เข้าสู่ระบบ หรือ ผูกบัญชี LINE เพื่อใช้งาน</p>
+        
+        <div class="position-relative mb-3">
+          <input type="password" class="form-control form-control-lg border-primary" id="loginInput" placeholder="กรอก MDID / RamaID" style="padding-right: 40px;">
+          <button type="button" class="btn position-absolute top-50 end-0 translate-middle-y text-muted" style="background: none; border: none; z-index: 10;" onclick="toggleLoginVisibility()">👁️</button>
+        </div>
+        
+        <button class="btn btn-primary btn-lg w-100 fw-bold shadow-sm" onclick="handleLogin()">เข้าสู่ระบบ</button>
+      </div>
     </div>
   </div>
 </div>
+  
 <div class="modal fade" id="aiTestModal" data-bs-backdrop="static" tabindex="-1">
   <div class="modal-dialog modal-xl modal-dialog-scrollable">
     <div class="modal-content">
@@ -249,73 +258,106 @@
 
 <script>
   
+// ตัวแปรเก็บข้อมูลผู้ใช้และ Modal
   let currentUser = null;
-  // 🟢 เพิ่มตัวแปร 2 ตัวนี้ สำหรับระบบ Sort ตาราง
-  let currentBankData = []; 
-  let currentSort = { column: '', direction: 'asc' };
+  let currentLineUid = "";
+  let loginModalInstance = null;
 
-// --- Utility: ฟังก์ชันเรียก API ด้วย Fetch ---
-  async function callAPI(action, payload = null, isGet = false) {
-    try {
-      if (isGet) {
-        let url = `${API_URL}?action=${action}`;
-        if(payload) {
-          // แจกแจงชื่อพารามิเตอร์ให้ถูกต้องตาม action
-          if (action === 'getMEQList') {
-            url += `&mdid=${payload}`;
-          } else if (action === 'getImageBase64') {
-            url += `&fileId=${payload}`; // <--- จุดที่แก้ไข: เปลี่ยนเป็น &fileId
-          } else {
-            url += `&meqId=${payload}`;
-          }
-        }
-        const res = await fetch(url);
-        return await res.json();
-      } else {
-        const res = await fetch(API_URL, {
-          method: 'POST',
-          body: JSON.stringify({ action, payload }),
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' } 
-        });
-        return await res.json();
-      }
-    } catch(err) {
-      return { success: false, message: 'การเชื่อมต่อ API ล้มเหลว: ' + err.message };
-    }
-  }
-  
-  // --- การทำงานเมื่อเปิดหน้าเว็บ ---
-  document.addEventListener("DOMContentLoaded", () => {
-    new bootstrap.Modal(document.getElementById('loginModal')).show();
-    addSubQuestion(); // เพิ่มข้อย่อยเปล่า 1 ข้อรอไว้
-  });
-
-  // --- ระบบ Login ---
-  async function handleLogin() {
-    const loginValue = document.getElementById('loginInput').value;
-    if(!loginValue) return;
-    Swal.fire({ title: 'กำลังตรวจสอบ...', didOpen: () => Swal.showLoading() });
+  // ==========================================
+  // เรียกใช้งานเมื่อโหลดหน้าเว็บ
+  // ==========================================
+  window.onload = async function() {
+    // กำหนดค่า Modal ของ Bootstrap
+    loginModalInstance = new bootstrap.Modal(document.getElementById('loginModal'));
     
-    const res = await callAPI('login', loginValue);
-    if(res.success) {
-      currentUser = res.user;
-      Swal.close();
-      bootstrap.Modal.getInstance(document.getElementById('loginModal')).hide();
+    // เรียกใช้ LIFF ของ LINE
+    await initializeLiff();
+  };
+
+  async function initializeLiff() {
+    try {
+      // 🔴 เปลี่ยน YOUR_LIFF_ID เป็นของคุณ
+      await liff.init({ liffId: "2010259516-dpBck3I9" });
       
-      document.getElementById('authorName').value = currentUser.name;
-      document.getElementById('institution').value = currentUser.institute;
-      document.getElementById('user-profile').innerHTML = `
-        <div class="text-center mb-4 pb-3 border-bottom border-secondary">
-          <h6 class="text-info">${currentUser.name}</h6>
-          <small class="text-light">${currentUser.institute}</small>
-        </div>
-      `;
-    } else {
-      Swal.fire('ข้อผิดพลาด', res.message, 'error');
+      if (liff.isLoggedIn()) {
+        const profile = await liff.getProfile();
+        currentLineUid = profile.userId;
+        checkLineLogin(); // เช็คว่าเคยผูกบัญชีไหม
+      } else {
+        // ถ้าไม่ได้ล็อกอิน LINE ให้เด้ง Modal ล็อกอินระบบปกติขึ้นมา
+        loginModalInstance.show(); 
+      }
+    } catch (err) {
+      console.error("LIFF Init Error:", err);
+      // ถ้าเปิดในเบราว์เซอร์ปกติ (ไม่ใช่ LINE) ก็ให้โชว์ Modal ขึ้นมาให้กรอกรหัสตามปกติ
+      loginModalInstance.show();
     }
   }
 
-// ==========================================
+  // ==========================================
+  // ฟังก์ชันตรวจสอบ LINE UID กับฐานข้อมูล
+  // ==========================================
+  async function checkLineLogin() {
+    Swal.fire({ title: 'กำลังตรวจสอบบัญชี...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    
+    const res = await callAPI('loginWithLine', { lineUid: currentLineUid });
+    Swal.close();
+    
+    if (res.success) {
+       // เคยผูกบัญชีแล้ว -> โหลดข้อมูลคลังข้อสอบเลย โดยไม่ต้องโชว์ Modal Login
+       currentUser = res.user;
+       switchView('bankView');
+       loadMEQBank();
+       
+       Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: `ยินดีต้อนรับคุณ ${currentUser.name}`, showConfirmButton: false, timer: 2000 });
+    } else {
+       // ยังไม่เคยผูกบัญชี -> โชว์ Modal Login เพื่อให้กรอกยืนยันรหัสครั้งแรก
+       loginModalInstance.show();
+    }
+  }
+
+  // ==========================================
+  // ฟังก์ชันจัดการปุ่ม "เข้าสู่ระบบ" บน Modal
+  // ==========================================
+  async function handleLogin() {
+    const inputId = document.getElementById('loginInput').value.trim();
+    if (!inputId) {
+      Swal.fire('แจ้งเตือน', 'กรุณากรอก MDID ก่อนครับ', 'warning');
+      return;
+    }
+
+    Swal.fire({ title: 'กำลังยืนยันตัวตน...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+    // เลือกว่าจะเป็นการล็อกอินปกติ หรือเป็นการผูกบัญชี LINE
+    let action = currentLineUid ? 'bindLineUid' : 'login';
+    let payload = currentLineUid ? { ramaId: inputId, lineUid: currentLineUid } : { ramaId: inputId };
+
+    const res = await callAPI(action, payload);
+
+    if (res.success) {
+       currentUser = res.user;
+       
+       // 🟢 ล็อกอินสำเร็จ สั่งปิด Modal ทิ้ง!
+       loginModalInstance.hide();
+       
+       Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: res.message || 'เข้าสู่ระบบสำเร็จ', showConfirmButton: false, timer: 2000 });
+       
+       switchView('bankView');
+       loadMEQBank();
+    } else {
+       Swal.fire('ข้อผิดพลาด', res.message, 'error');
+    }
+  }
+
+  // ==========================================
+  // ฟังก์ชันเปิด/ปิด การมองเห็นรหัสผ่าน
+  // ==========================================
+  function toggleLoginVisibility() {
+    const input = document.getElementById('loginInput');
+    input.type = input.type === 'password' ? 'text' : 'password';
+  }
+
+  // ==========================================
   // ฟังก์ชันสลับหน้าจอ (อัปเดตป้องกัน Error classList null)
   // ==========================================
   function switchView(viewId, linkEl = null) {
