@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>MEQ Portal System V1.30 E</title>
+  <title>MEQ Portal System V1.30 F</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📝</text></svg>">
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -295,25 +295,27 @@
 
   async function initializeLiff() {
     try {
-      // 🔴 เช็ค LIFF ID ให้ตรงกับของจริง
       await liff.init({ liffId: "2010259516-dpBck3I9" }); 
       
       if (liff.isLoggedIn()) {
+        // ล็อกอิน LINE แล้ว ดึง UID มาได้เลย
         const profile = await liff.getProfile();
         currentLineUid = profile.userId;
         
-        // 🟢 เพิ่มบรรทัดนี้เพื่อทดสอบ ถ้าระบบเด้งรหัสยาวๆ ขึ้นมา แสดงว่า LIFF ทำงานสมบูรณ์แล้ว!
-        console.log("LINE UID ที่ดึงมาได้คือ:", currentLineUid);
+        console.log("ดึง LINE UID สำเร็จ:", currentLineUid); // เช็คใน Console ได้
         
-        checkLineLogin();
+        // ส่งไปเช็คที่หลังบ้านว่าเคยผูกบัญชีหรือยัง
+        checkLineLogin(); 
+        
       } else {
-        // ถ้าเปิดผ่านเว็บปกติ มันจะตกมาเข้าเงื่อนไขนี้
-        console.log("ยังไม่ได้ล็อกอิน LINE");
-        loginModalInstance.show();
+        // 🟢 เปลี่ยนตรงนี้! ถ้ายังไม่ได้ล็อกอิน LINE (เช่น เปิดบน PC) ให้บังคับล็อกอินก่อน
+        // ระบบจะพาไปหน้าเว็บ LINE (ให้สแกน QR Code หรือใส่อีเมล) แล้วค่อยเด้งกลับมา
+        liff.login(); 
       }
     } catch (err) {
       console.error("LIFF Init Error:", err);
-      loginModalInstance.show();
+      // ถ้า Error จาก LIFF จริงๆ ค่อยให้ล็อกอินผ่าน MDID แบบธรรมดา
+      loginModalInstance.show(); 
     }
   }
 
