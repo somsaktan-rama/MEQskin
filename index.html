@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>MEQ Portal System V1.32 A</title>
+  <title>MEQ Portal System V1.32 B</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📝</text></svg>">
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -135,6 +135,7 @@
       <a class="nav-link active" onclick="createNewMEQ(this)">📝 สร้างข้อสอบใหม่</a>
       <a class="nav-link" onclick="switchView('bankView', this); loadMEQBank();">🔍 คลังข้อสอบร่วม</a>
       <a class="nav-link text-warning" onclick="switchView('importView', this); loadMEQDropdown();">📥 นำเข้าคำตอบจาก Moodle</a>
+      <a class="nav-link text-success fw-bold" onclick="switchView('gradingView', this);">📊 ตรวจข้อสอบด้วย AI</a>
       <hr class="text-white my-3">
       <a class="nav-link text-danger fw-bold" style="cursor: pointer;" onclick="logout()">🚪 ออกจากระบบ (Logout)</a>
     </div>
