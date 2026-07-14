@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>MEQ Portal System V1.32 B</title>
+  <title>MEQ Portal System V1.32 C</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📝</text></svg>">
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -212,11 +212,12 @@
           </table>
         </div>
       </div>
-      <div id="importView" class="view-section">
+<div id="importView" class="view-section">
         <h2 class="mb-4">📥 นำเข้าคำตอบของนักศึกษา (Moodle Import)</h2>
         
         <div class="card p-4 border-top border-warning border-4">
           <form id="importForm" onsubmit="handleImportSubmit(event)">
+            
             <div class="row mb-4">
               <div class="col-md-6">
                 <label class="form-label fw-bold">1. เลือกชุดข้อสอบ (ExamSet / MEQ ID)</label>
@@ -227,7 +228,26 @@
               </div>
             </div>
 
-<div id="gradingView" class="view-section">
+            <div class="row mb-4">
+              <div class="col-md-6">
+                <label class="form-label fw-bold">2. อัปโหลดไฟล์คะแนนจาก Moodle (.csv)</label>
+                <div class="file-drop-area border-warning" style="background: #fffcf5;">
+                  <input type="file" class="form-control" id="moodleCsvFile" accept=".csv" required>
+                </div>
+                <small class="text-muted">เลือก Export จาก Moodle ในรูปแบบ "Comma separated values (.csv)"</small>
+              </div>
+            </div>
+            
+            <div class="mt-2">
+              <button type="submit" class="btn btn-warning btn-lg shadow-sm" id="importBtn">
+                🚀 ประมวลผลและนำเข้าสู่ระบบ
+              </button>
+            </div>
+
+          </form>
+        </div>
+      </div>
+      <div id="gradingView" class="view-section">
         <div class="d-flex justify-content-between align-items-center mb-4">
           <h2>📊 หน้าตรวจทานและประเมินคำตอบ (Teacher Grading Tool)</h2>
           <button class="btn btn-outline-secondary fw-bold" onclick="toggleSidebarFullScreen(this)">
@@ -251,11 +271,9 @@
               <button class="btn btn-primary fw-bold shadow-sm" onclick="bulkGradeEveryoneAI(document.getElementById('importMeqId').value || 'MEQ-01')">
                 ✨ AI ตรวจทั้งหมด (รวดเดียว)
               </button>
-
               <button class="btn btn-outline-primary fw-bold bg-white" onclick="gradeSingleQuestionAI(document.getElementById('importMeqId').value || 'MEQ-01')">
                 🎯 ตรวจทีละข้อ
               </button>
-
               <button class="btn btn-outline-danger fw-bold bg-white" onclick="clearScoresUI(document.getElementById('importMeqId').value || 'MEQ-01')">
                 🧹 ล้างคะแนน / Error
               </button>
@@ -283,7 +301,7 @@
           </div>
         </div>
       </div>
-            
+        
             <div class="row mb-4">
               <div class="col-md-6">
                 <label class="form-label fw-bold">2. อัปโหลดไฟล์คะแนนจาก Moodle (.csv)</label>
