@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>MEQ Portal System V1.32 G</title>
+  <title>MEQ Portal System V1.32 H</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📝</text></svg>">
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -274,7 +274,7 @@
               <button class="btn btn-outline-primary fw-bold bg-white" onclick="gradeSingleQuestionAI(document.getElementById('importMeqId').value)">
                 🎯 ตรวจทีละข้อ
               </button>
-              <button class="btn btn-outline-danger fw-bold bg-white" onclick="clearScoresUI(document.getElementById('importMeqId').value)">
+              <button class="btn btn-outline-danger fw-bold bg-white" onclick="clearScoresUI()">
                 🧹 ล้างคะแนน / Error
               </button>
             </div>
@@ -1275,42 +1275,73 @@ function createNewMEQ(linkEl) {
   }
 
 // ==========================================
-  // ฟังก์ชันแสดงเมนูล้างคะแนน
+  // 🧹 3. ฟังก์ชันล้างคะแนน / ล้าง Error (อัปเดตมี Dropdown)
   // ==========================================
-  function clearScoresUI(meqId) {
-    Swal.fire({
-      title: '🧹 เลือกล้างข้อมูล',
-      text: "คุณต้องการล้างข้อมูลแบบไหน?",
-      icon: 'question',
-      showDenyButton: true,
+  async function clearScoresUI() {
+    // 1. โหลดข้อมูลชุดข้อสอบจาก Student_Answers
+    Swal.fire({ title: 'กำลังโหลดข้อมูลชุดข้อสอบ...', didOpen: () => Swal.showLoading() });
+    const resList = await callAPI('getAvailableMeqFromAnswers', {});
+    Swal.close();
+
+    if (!resList.success || Object.keys(resList.data).length === 0) {
+      return Swal.fire('แจ้งเตือน', 'ไม่พบข้อมูลในชีต Student_Answers', 'warning');
+    }
+
+    let optionsObj = {};
+    for (let meq in resList.data) {
+      let no = resList.data[meq].no;
+      optionsObj[meq] = no ? `ข้อ ${no} : ${meq}` : `รหัส: ${meq}`;
+    }
+
+    // 2. แสดง Dropdown ให้เลือกชุดข้อสอบ
+    const { value: meqId } = await Swal.fire({
+      title: '🧹 เลือกชุดข้อสอบที่ต้องการล้างข้อมูล',
+      input: 'select',
+      inputOptions: optionsObj,
+      inputPlaceholder: '-- เลือกชุดข้อสอบ --',
       showCancelButton: true,
-      confirmButtonText: 'ล้างเฉพาะช่องที่ Error',
-      denyButtonText: 'ล้างคะแนนทั้งหมด',
-      cancelButtonText: 'ยกเลิก',
-      confirmButtonColor: '#f39c12',
-      denyButtonColor: '#d33',
-    }).then(async (result) => {
-      if (result.isConfirmed) {
-        // เลือกล้างเฉพาะ Error
-        executeClearScores(meqId, 'errors');
-      } else if (result.isDenied) {
-        // เลือกล้างทั้งหมด ต้องถามย้ำอีกรอบเพื่อความชัวร์
-        Swal.fire({
-          title: '⚠️ ยืนยันล้างทั้งหมด?',
-          text: "คะแนนของชุดข้อสอบนี้จะถูกลบทั้งหมด ไม่สามารถกู้คืนได้!",
-          icon: 'warning',
-          showCancelButton: true,
-          confirmButtonText: 'ใช่, ล้างทั้งหมด'
-        }).then((confirmRes) => {
-          if (confirmRes.isConfirmed) executeClearScores(meqId, 'all');
-        });
-      }
+      inputValidator: (value) => { if (!value) return 'กรุณาเลือกชุดข้อสอบครับ!' }
     });
+
+    // 3. เมื่อเลือกข้อสอบแล้ว ค่อยถามต่อว่าล้างแบบไหน
+    if (meqId) {
+      Swal.fire({
+        title: `ล้างข้อมูล (${meqId})`,
+        text: "คุณต้องการล้างข้อมูลแบบไหน?",
+        icon: 'question',
+        showDenyButton: true,
+        showCancelButton: true,
+        confirmButtonText: 'ล้างเฉพาะช่องที่ Error',
+        denyButtonText: 'ล้างคะแนนทั้งหมด',
+        cancelButtonText: 'ยกเลิก',
+        confirmButtonColor: '#f39c12',
+        denyButtonColor: '#d33',
+      }).then(async (result) => {
+        if (result.isConfirmed) {
+          // เลือกล้างเฉพาะ Error
+          executeClearScores(meqId, 'errors');
+        } else if (result.isDenied) {
+          // เลือกล้างทั้งหมด
+          Swal.fire({
+            title: '⚠️ ยืนยันล้างทั้งหมด?',
+            text: "คะแนนของชุดข้อสอบนี้จะถูกลบทั้งหมด ไม่สามารถกู้คืนได้!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'ใช่, ล้างทั้งหมด'
+          }).then((confirmRes) => {
+            if (confirmRes.isConfirmed) executeClearScores(meqId, 'all');
+          });
+        }
+      });
+    }
   }
 
+  // ฟังก์ชันตัวช่วยสำหรับส่งคำสั่งล้างข้อมูลไปที่หลังบ้าน
   async function executeClearScores(meqId, clearType) {
     Swal.fire({ title: 'กำลังล้างข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    
     const res = await callAPI('clearAIScores', { meqId: meqId, clearType: clearType });
+    
     if (res.success) {
       Swal.fire('สำเร็จ!', res.message, 'success');
     } else {
