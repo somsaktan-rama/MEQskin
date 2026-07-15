@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>MEQ Portal System V1.32 M</title>
+  <title>MEQ Portal System V1.33</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📝</text></svg>">
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -268,19 +268,23 @@
               </select>
             </div>
 
-      <div class="d-flex gap-2">
-        <button class="btn btn-primary fw-bold shadow-sm" onclick="bulkGradeEveryoneAI()">
-          ✨ AI ตรวจทั้งหมด (รวดเดียว)
-        </button>
+    <div class="d-flex gap-2 flex-wrap">
+      <button class="btn btn-primary fw-bold shadow-sm" onclick="bulkGradeEveryoneAI()">
+        ✨ AI ตรวจทั้งหมด
+      </button>
 
-        <button class="btn btn-outline-primary fw-bold bg-white" onclick="gradeSingleQuestionAI()">
-          🎯 ตรวจทีละข้อ
-        </button>
+      <button class="btn btn-outline-primary fw-bold bg-white" onclick="gradeSingleQuestionAI()">
+        🎯 ตรวจทีละข้อ
+      </button>
 
-        <button class="btn btn-outline-danger fw-bold bg-white" onclick="clearScoresUI()">
-          🧹 ล้างคะแนน / Error
-        </button>
-          </div>
+      <button class="btn btn-warning fw-bold shadow-sm text-dark" onclick="auditSingleStudentUI()">
+        🔍 ตรวจสอบรายบุคคล (Audit)
+      </button>
+
+      <button class="btn btn-outline-danger fw-bold bg-white" onclick="clearScoresUI()">
+        🧹 ล้างคะแนน / Error
+      </button>
+    </div>
             
           </div>
         </div>
@@ -1510,6 +1514,83 @@ function createNewMEQ(linkEl) {
       Swal.fire('สำเร็จ!', res.message, 'success');
     } else {
       Swal.fire('ข้อผิดพลาด', res.message, 'error');
+    }
+  }
+
+// ==========================================
+  // 🔍 4. ฟังก์ชันตรวจสอบรายบุคคล (Audit)
+  // ==========================================
+  async function auditSingleStudentUI() {
+    Swal.fire({ title: 'กำลังโหลดข้อมูล...', didOpen: () => Swal.showLoading() });
+    const resList = await callAPI('getAvailableMeqFromAnswers', {});
+    Swal.close();
+
+    if (!resList.success || Object.keys(resList.data).length === 0) {
+      return Swal.fire('แจ้งเตือน', 'ไม่พบข้อมูลในชีต Student_Answers', 'warning');
+    }
+
+    // 1. เลือกชุดข้อสอบ
+    let meqOptions = {};
+    for (let meq in resList.data) { 
+      let no = resList.data[meq].no;
+      meqOptions[meq] = no ? `ข้อ ${no} : ${meq}` : `รหัส: ${meq}`; 
+    }
+    const { value: meqId } = await Swal.fire({
+      title: '🔍 ขั้นที่ 1: เลือกชุดข้อสอบ',
+      input: 'select', inputOptions: meqOptions, inputPlaceholder: '-- เลือก --', showCancelButton: true
+    });
+    if (!meqId) return;
+
+    // 2. เลือกข้อย่อย
+    let subQList = resList.data[meqId].subQuestions;
+    let subQOptions = {};
+    subQList.forEach(sq => { subQOptions[sq] = `ข้อย่อยที่: ${sq}`; });
+    const { value: subQ } = await Swal.fire({
+      title: `🔍 ขั้นที่ 2: เลือกข้อย่อย (${meqId})`,
+      input: 'select', inputOptions: subQOptions, inputPlaceholder: '-- เลือก --', showCancelButton: true
+    });
+    if (!subQ) return;
+
+    // 3. เลือกรหัสนักศึกษา (สร้างตัวเลือก R01 - R32)
+    let studentOptions = {};
+    for(let i=1; i<=32; i++) {
+        let sid = "R" + i.toString().padStart(2, '0');
+        studentOptions[sid] = `นักศึกษา ${sid}`;
+    }
+    const { value: studentId } = await Swal.fire({
+      title: `🔍 ขั้นที่ 3: เลือกรหัสนักศึกษา`,
+      input: 'select', inputOptions: studentOptions, inputPlaceholder: '-- เลือก R01 ถึง R32 --', showCancelButton: true
+    });
+    if (!studentId) return;
+
+    // 4. ส่งไปตรวจ
+    const aiModel = document.getElementById('aiModelSelect') ? document.getElementById('aiModelSelect').value : 'gemini-flash-latest';
+    
+    Swal.fire({
+      title: `กำลังวิเคราะห์ ${studentId}...`,
+      html: 'ระบบกำลังอ่านคำตอบและประเมินผล<br><span class="text-danger">⚠️ กรุณารอสักครู่</span>',
+      allowOutsideClick: false, didOpen: () => Swal.showLoading()
+    });
+
+    const res = await callAPI('auditSingleStudentAI', { meqId: meqId, subQ: subQ, studentId: studentId, model: aiModel });
+
+    if (res.success) {
+      // 🟢 นำผลลัพธ์พร้อมเหตุผล มาโชว์ใน Popup ให้ดูลื่นตา
+      Swal.fire({
+        title: `✅ ผลการตรวจ: ${studentId}`,
+        html: `
+          <div style="text-align: left; padding: 10px; background: #f8f9fa; border-radius: 8px;">
+            <b>คำตอบของนักศึกษา:</b> <span class="text-primary">${res.studentAns}</span><br><br>
+            <b>คะแนนที่ AI ให้:</b> <span class="text-success fs-5 fw-bold">${res.score} คะแนน</span><br><br>
+            <b>คำอธิบายเหตุผล:</b> <span class="text-secondary">${res.reason}</span>
+          </div>
+          <br><small class="text-muted">*คะแนนถูกอัปเดตลงใน Google Sheets เรียบร้อยแล้ว*</small>
+        `,
+        icon: 'success',
+        confirmButtonText: 'ปิดหน้าต่าง'
+      });
+    } else {
+      Swal.fire('เกิดข้อผิดพลาด', res.message, 'error');
     }
   }
   
