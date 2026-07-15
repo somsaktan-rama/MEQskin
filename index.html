@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>MEQ Portal System V1.33 D</title>
+  <title>MEQ Portal System V1.33 E</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📝</text></svg>">
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -1523,19 +1523,19 @@ function createNewMEQ(linkEl) {
     }
   }
 
-// ==========================================
-  // 🔍 4. ฟังก์ชันตรวจสอบรายบุคคล (Audit)
-  // ==========================================
+  // =================================================================================
+  // 🔍 ฟังก์ชันตรวจสอบรายบุคคล (Audit) แบบเหมาตรวจทุกข้อย่อย สไตล์ testAIGrading
+  // =================================================================================
   async function auditSingleStudentUI() {
-    Swal.fire({ title: 'กำลังโหลดข้อมูล...', didOpen: () => Swal.showLoading() });
+    Swal.fire({ title: 'กำลังดึงรายการข้อสอบ...', didOpen: () => Swal.showLoading() });
     const resList = await callAPI('getAvailableMeqFromAnswers', {});
     Swal.close();
 
     if (!resList.success || Object.keys(resList.data).length === 0) {
-      return Swal.fire('แจ้งเตือน', 'ไม่พบข้อมูลในชีต Student_Answers', 'warning');
+      return Swal.fire('แจ้งเตือน', 'ไม่พบข้อมูลชุดข้อสอบในแผ่นงาน Student_Answers', 'warning');
     }
 
-    // 1. เลือกชุดข้อสอบ
+    // 1. ขั้นตอนเลือกชุดข้อสอบ (MEQ ID)
     let meqOptions = {};
     for (let meq in resList.data) { 
       let no = resList.data[meq].no;
@@ -1543,64 +1543,116 @@ function createNewMEQ(linkEl) {
     }
     const { value: meqId } = await Swal.fire({
       title: '🔍 ขั้นที่ 1: เลือกชุดข้อสอบ',
-      input: 'select', inputOptions: meqOptions, inputPlaceholder: '-- เลือก --', showCancelButton: true
+      input: 'select', 
+      inputOptions: meqOptions, 
+      inputPlaceholder: '-- เลือกชุดข้อสอบ --', 
+      showCancelButton: true
     });
     if (!meqId) return;
 
-    // 2. เลือกข้อย่อย
-    let subQList = resList.data[meqId].subQuestions;
-    let subQOptions = {};
-    subQList.forEach(sq => { subQOptions[sq] = `ข้อย่อยที่: ${sq}`; });
-    const { value: subQ } = await Swal.fire({
-      title: `🔍 ขั้นที่ 2: เลือกข้อย่อย (${meqId})`,
-      input: 'select', inputOptions: subQOptions, inputPlaceholder: '-- เลือก --', showCancelButton: true
-    });
-    if (!subQ) return;
-
-    // 3. เลือกรหัสนักศึกษา (สร้างตัวเลือก R01 - R32)
+    // 2. ขั้นตอนเลือกรหัสนักศึกษา (R01 - R32)
     let studentOptions = {};
-    for(let i=1; i<=32; i++) {
+    for(let i = 1; i <= 32; i++) {
         let sid = "R" + i.toString().padStart(2, '0');
         studentOptions[sid] = `นักศึกษา ${sid}`;
     }
     const { value: studentId } = await Swal.fire({
-      title: `🔍 ขั้นที่ 3: เลือกรหัสนักศึกษา`,
-      input: 'select', inputOptions: studentOptions, inputPlaceholder: '-- เลือก R01 ถึง R32 --', showCancelButton: true
+      title: `🔍 ขั้นที่ 2: เลือกรหัสนักศึกษา`,
+      text: `ดึงคำตอบทุกข้อย่อยของชุดข้อสอบ ${meqId}`,
+      input: 'select', 
+      inputOptions: studentOptions, 
+      inputPlaceholder: '-- เลือก R01 ถึง R32 --', 
+      showCancelButton: true
     });
     if (!studentId) return;
 
-    // 4. ส่งไปตรวจ
-    const aiModel = document.getElementById('aiModelSelect') ? document.getElementById('aiModelSelect').value : 'gemini-flash-latest';
-    
+    // 3. ขั้นตอนเลือกรูปแบบการตรวจวิเคราะห์ (เลียนแบบหน้า Playground ของอาจารย์)
+    const { value: auditMode } = await Swal.fire({
+      title: '🔍 ขั้นที่ 3: ตัวเลือกรูปแบบการตรวจ',
+      input: 'radio',
+      inputOptions: {
+        'with_reason': 'ตรวจประเมินพร้อมคำอธิบาย (Score & Reason)',
+        'score_only': 'ตรวจเอาเฉพาะตัวเลขคะแนนอย่างเดียว (Score Only)'
+      },
+      inputValue: 'with_reason',
+      showCancelButton: true
+    });
+    if (!auditMode) return;
+
+    // ดึงรหัสโมเดล AI ปัจจุบันจาก Dropdown ที่เลือกไว้บนหน้าเว็บหลัก
+    const aiModelSelect = document.getElementById('aiModelSelect');
+    const selectedModel = aiModelSelect ? aiModelSelect.value : 'gemini-flash-latest';
+
+    // 4. สั่งการ Loading รอคอยการประมวลผลทีละข้อสอบย่อย
     Swal.fire({
-      title: `กำลังวิเคราะห์ ${studentId}...`,
-      html: 'ระบบกำลังอ่านคำตอบและประเมินผล<br><span class="text-danger">⚠️ กรุณารอสักครู่</span>',
-      allowOutsideClick: false, didOpen: () => Swal.showLoading()
+      title: `กำลังเริ่มการตรวจสอบ Audit ของ ${studentId}...`,
+      html: `ระบบกำลังดึงโจทย์ เกณฑ์ เฉลย และคำตอบมาให้ AI ตรวจสอบทีละข้อย่อยอย่างละเอียด...<br><span class="text-danger fw-bold">⚠️ โปรดรอระบบทำงานสักครู่ ห้ามปิดหน้าจอครับ</span>`,
+      allowOutsideClick: false,
+      didOpen: () => Swal.showLoading()
     });
 
-    const res = await callAPI('auditSingleStudentAI', { meqId: meqId, subQ: subQ, studentId: studentId, model: aiModel });
+    const res = await callAPI('auditWholeMEQStudentAI', { 
+      meqId: meqId, 
+      studentId: studentId, 
+      model: selectedModel, 
+      mode: auditMode 
+    });
+    Swal.close();
 
+    // 5. เมื่อทำงานสำเร็จ นำผลลัพธ์ทุกข้อย่อยมาร้อยเรียงสร้างตารางรายงานสรุปผล
     if (res.success) {
-      // 🟢 นำผลลัพธ์พร้อมเหตุผล มาโชว์ใน Popup ให้ดูลื่นตา
+      let resultRowsHTML = '';
+      let grandTotalScore = 0;
+
+      res.results.forEach(item => {
+        grandTotalScore += item.score;
+        resultRowsHTML += `
+          <tr style="border-bottom: 1px solid #dee2e6;">
+            <td style="padding: 12px; font-weight: bold; color: #0d6efd; text-align: center;">${item.subQuestion}</td>
+            <td style="padding: 12px; text-align: left; max-width: 250px; word-break: break-word; font-size: 0.95rem;">${item.studentAnswer || '<span class="text-muted">- ว่างเปล่า -</span>'}</td>
+            <td style="padding: 12px; font-weight: bold; color: #198754; text-align: center; font-size: 1.15rem;">${item.score}</td>
+            <td style="padding: 12px; text-align: left; color: #495057; font-size: 0.9rem; max-width: 280px; word-break: break-word;">${item.reason || '-'}</td>
+          </tr>
+        `;
+      });
+
+      // แสดง Popup ตารางรายงานผลลัพธ์ฉบับเต็มความกว้างขยายใหญ่
       Swal.fire({
-        title: `✅ ผลการตรวจ: ${studentId}`,
+        title: `📊 รายงานผลการตรวจสอบ Audit: ${res.studentId}`,
         html: `
-          <div style="text-align: left; padding: 10px; background: #f8f9fa; border-radius: 8px;">
-            <b>คำตอบของนักศึกษา:</b> <span class="text-primary">${res.studentAns}</span><br><br>
-            <b>คะแนนที่ AI ให้:</b> <span class="text-success fs-5 fw-bold">${res.score} คะแนน</span><br><br>
-            <b>คำอธิบายเหตุผล:</b> <span class="text-secondary">${res.reason}</span>
+          <div style="text-align: left; margin-bottom: 15px; font-size: 1.05rem;">
+            <strong>ชุดข้อสอบ:</strong> <span class="text-dark fw-bold">${res.meqId}</span> &nbsp;&nbsp;|&nbsp;&nbsp; 
+            <strong>คะแนนรวมทุกข้อ:</strong> <span style="font-size: 1.3rem; color: #198754; font-weight: bold;">${grandTotalScore} คะแนน</span>
           </div>
-          <br><small class="text-muted">*คะแนนถูกอัปเดตลงใน Google Sheets เรียบร้อยแล้ว*</small>
+          <div style="max-height: 420px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 8px; box-shadow: inset 0 0 5px rgba(0,0,0,0.05);">
+            <table style="width: 100%; border-collapse: collapse; text-align: left; font-family: sans-serif;">
+              <thead>
+                <tr style="background-color: #f8f9fa; border-bottom: 2px solid #dee2e6; position: sticky; top: 0; z-index: 10;">
+                  <th style="padding: 12px; text-align: center; width: 12%; background: #f8f9fa;">ข้อย่อย</th>
+                  <th style="padding: 12px; width: 38%; background: #f8f9fa;">คำตอบนักศึกษา</th>
+                  <th style="padding: 12px; text-align: center; width: 15%; background: #f8f9fa;">คะแนน</th>
+                  <th style="padding: 12px; width: 35%; background: #f8f9fa;">เหตุผลเชิงลึกจาก AI</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${resultRowsHTML}
+              </tbody>
+            </table>
+          </div>
+          <div style="margin-top: 15px; font-size: 0.85rem; color: #6c757d; text-align: center;">
+            * ระบบทำการอัปเดตตัวเลขคะแนนลงชีต <b>Student_AI_Scores</b> เรียบร้อยแล้ว *
+          </div>
         `,
         icon: 'success',
-        confirmButtonText: 'ปิดหน้าต่าง'
+        width: '950px',
+        confirmButtonText: 'ปิดหน้าต่างรายงาน'
       });
     } else {
-      Swal.fire('เกิดข้อผิดพลาด', res.message, 'error');
+      Swal.fire('การตรวจสอบผิดพลาด', res.message, 'error');
     }
   }
 
-// =========================================================
+  // =========================================================
   // 📥 ดึงข้อมูล "ทุกข้อย่อย" ของนักศึกษา (รวบรัดขั้นตอนให้เลือกแค่ R01-R32)
   // =========================================================
   async function loadStudentToPlaygroundUI(passedMeqId = null) {
