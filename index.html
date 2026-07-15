@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>MEQ Portal System V1.32 H</title>
+  <title>MEQ Portal System V1.32 I</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📝</text></svg>">
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -267,17 +267,19 @@
               </select>
             </div>
 
-            <div class="d-flex gap-2">
-              <button class="btn btn-primary fw-bold shadow-sm" onclick="bulkGradeEveryoneAI(document.getElementById('importMeqId').value)">
-                ✨ AI ตรวจทั้งหมด (รวดเดียว)
-              </button>
-              <button class="btn btn-outline-primary fw-bold bg-white" onclick="gradeSingleQuestionAI(document.getElementById('importMeqId').value)">
-                🎯 ตรวจทีละข้อ
-              </button>
-              <button class="btn btn-outline-danger fw-bold bg-white" onclick="clearScoresUI()">
-                🧹 ล้างคะแนน / Error
-              </button>
-            </div>
+      <div class="d-flex gap-2">
+        <button class="btn btn-primary fw-bold shadow-sm" onclick="bulkGradeEveryoneAI()">
+          ✨ AI ตรวจทั้งหมด (รวดเดียว)
+        </button>
+
+        <button class="btn btn-outline-primary fw-bold bg-white" onclick="gradeSingleQuestionAI()">
+          🎯 ตรวจทีละข้อ
+        </button>
+
+        <button class="btn btn-outline-danger fw-bold bg-white" onclick="clearScoresUI()">
+          🧹 ล้างคะแนน / Error
+        </button>
+          </div>
             
           </div>
         </div>
@@ -1274,7 +1276,7 @@ function createNewMEQ(linkEl) {
     }
   }
 
-// ==========================================
+  // ==========================================
   // 🧹 3. ฟังก์ชันล้างคะแนน / ล้าง Error (อัปเดตมี Dropdown)
   // ==========================================
   async function clearScoresUI() {
