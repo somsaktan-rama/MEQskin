@@ -1604,27 +1604,12 @@ function createNewMEQ(linkEl) {
   // 📥 ดึงข้อมูล "ทุกข้อย่อย" ของนักศึกษา (รวบรัดขั้นตอนให้เลือกแค่ R01-R32)
   // =========================================================
   async function loadStudentToPlaygroundUI(passedMeqId = null) {
-    
-    // 1. กำหนดรหัสข้อสอบ (MEQ ID) แบบอัตโนมัติ
     let meqId = passedMeqId;
     
+    // 1. ตรวจสอบว่ามี MEQ ID ส่งมาไหม ถ้าไม่มีให้แจ้งเตือนแล้วหยุดเลย (ไม่ต้องเด้งให้พิมพ์)
     if (!meqId) {
-      // 💡 อาจารย์สามารถดึงค่า MEQ ID จาก Element บนหน้าเว็บได้เลยครับ 
-      // เช่น ถ้ามี Dropdown หรือ Input ซ่อนอยู่ ให้เอา Comment ด้านล่างนี้ออกแล้วแก้ ID ให้ตรงครับ:
-      // meqId = document.getElementById('id_ของช่อง_meq').value;
-
-      // ถ้าหาไม่เจอจริงๆ ระบบจะเด้งให้พิมพ์รหัสใส่แทน (เพื่อป้องกัน Error)
-      const { value: inputMeq } = await Swal.fire({
-        title: 'ระบุรหัสชุดข้อสอบ',
-        text: 'เช่น MEQ-67-5-1',
-        input: 'text',
-        showCancelButton: true,
-        inputValidator: (value) => {
-          if (!value) return 'กรุณาระบุรหัสข้อสอบ!'
-        }
-      });
-      if (!inputMeq) return;
-      meqId = inputMeq;
+       Swal.fire('แจ้งเตือน', 'กรุณาเลือกชุดข้อสอบจากหน้าจอก่อนกดดึงข้อมูลครับ', 'warning');
+       return;
     }
 
     // 2. เด้ง Popup เลือกรหัสนักศึกษา (R01 - R32) ทันที
@@ -1644,8 +1629,7 @@ function createNewMEQ(linkEl) {
     });
     
     if (!studentId) return;
-
-    // 3. ยิงคำสั่งไปดึงข้อมูลจาก Google Sheets (Code.gs)
+        // 3. ยิงคำสั่งไปดึงข้อมูลจาก Google Sheets (Code.gs)
     Swal.fire({ title: `กำลังดึงข้อมูล ${studentId}...`, didOpen: () => Swal.showLoading() });
     
     // เรียกใช้ฟังก์ชัน getPlaygroundMEQStudentData จากฝั่งหลังบ้าน
