@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>MEQ Portal System V1.33 I</title>
+  <title>MEQ Portal System V1.33 J</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📝</text></svg>">
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -1524,18 +1524,16 @@ function createNewMEQ(linkEl) {
   }
 
 // =================================================================================
-  // 🔍 ฟังก์ชัน Audit (ปรับ Flow ใหม่: ดึงข้อมูลรอ -> เลือกเด็ก -> เลือก Model -> กดตรวจ)
+  // 🔍 ฟังก์ชัน Audit (ปรับ Flow: โชว์ข้อมูลตรวจทาน -> เลือกรุ่น AI -> กดตรวจ)
   // =================================================================================
   async function auditSingleStudentUI() {
-    // 🟢 ขั้นที่ 1: เลือกชุดข้อสอบ
     Swal.fire({ title: 'กำลังดึงรายการข้อสอบ...', didOpen: () => Swal.showLoading() });
     const resList = await callAPI('getAvailableMeqFromAnswers', {});
     Swal.close();
 
-    if (!resList.success || Object.keys(resList.data).length === 0) {
-      return Swal.fire('แจ้งเตือน', 'ไม่พบข้อมูลในแผ่นงาน Student_Answers', 'warning');
-    }
+    if (!resList.success || Object.keys(resList.data).length === 0) return Swal.fire('แจ้งเตือน', 'ไม่พบข้อมูล', 'warning');
 
+    // 🟢 ขั้นที่ 1: เลือกชุดข้อสอบ
     let meqOptions = {};
     for (let meq in resList.data) { 
       let no = resList.data[meq].no;
@@ -1547,11 +1545,8 @@ function createNewMEQ(linkEl) {
     });
     if (!meqId) return;
 
-    // 🟢 ดึงข้อมูลทุกอย่างมากองรอไว้ก่อน (Pre-fetch)
     Swal.fire({ 
-      title: 'กำลังเตรียมข้อมูลรอไว้...', 
-      text: 'โหลดคำตอบ เกณฑ์ และโจทย์ทั้งหมดเข้าสู่ระบบ',
-      allowOutsideClick: false, didOpen: () => Swal.showLoading() 
+      title: 'กำลังเตรียมข้อมูลรอไว้...', allowOutsideClick: false, didOpen: () => Swal.showLoading() 
     });
     const prefetchRes = await callAPI('getMEQAuditData', { meqId: meqId });
     Swal.close();
@@ -1559,7 +1554,7 @@ function createNewMEQ(linkEl) {
     if (!prefetchRes.success) return Swal.fire('เกิดข้อผิดพลาด', prefetchRes.message, 'error');
     const studentsData = prefetchRes.studentsData;
 
-    // 🟢 ขั้นที่ 2: วนลูปเลือกนักศึกษา
+    // 🟢 วนลูป: ขั้นที่ 2 ถึง 5
     while (true) {
       let studentOptions = {};
       for(let i = 1; i <= 32; i++) {
@@ -1567,6 +1562,7 @@ function createNewMEQ(linkEl) {
           studentOptions[sid] = `นักศึกษา ${sid}`;
       }
       
+      // ขั้นที่ 2: เลือกเด็ก
       const { value: studentId } = await Swal.fire({
         title: `ขั้นที่ 2: เลือกนักศึกษาเข้าตรวจ Audit`,
         text: `ชุดข้อสอบปัจจุบัน: ${meqId}`,
@@ -1574,59 +1570,69 @@ function createNewMEQ(linkEl) {
         showCancelButton: true, cancelButtonText: '❌ ปิดหน้าต่าง (ออก)'
       });
       
-      if (!studentId) break; // ถ้ากดปิดหน้าต่าง ให้ออกจากลูป
+      if (!studentId) break; 
 
       let studentTasks = studentsData[studentId] || [];
       if (studentTasks.length === 0) {
-         await Swal.fire('แจ้งเตือน', `ไม่พบคำตอบของ ${studentId} ในระบบ`, 'info');
-         continue; // วนกลับไปเลือกเด็กใหม่
+         await Swal.fire('แจ้งเตือน', `ไม่พบคำตอบของ ${studentId}`, 'info');
+         continue; 
       }
 
-      // 🟢 นำข้อมูลมาแสดงรอ + ขั้นที่ 3 (เลือก Model) + ขั้นที่ 4 (เลือกรูปแบบ) + ขั้นที่ 5 (ปุ่มตรวจ/ยกเลิก)
+      // 🟢 สร้างหน้าจอ Preview ตรวจทานข้อมูล
+      let previewHTML = `<div style="max-height: 180px; overflow-y: auto; border: 1px solid #ced4da; border-radius: 6px; padding: 10px; margin-bottom: 15px; background: #fff; text-align: left; font-size: 0.85rem;">`;
+      studentTasks.forEach(t => {
+        previewHTML += `
+          <div style="border-bottom: 1px dashed #ccc; padding-bottom: 8px; margin-bottom: 8px;">
+            <strong class="text-primary">ข้อย่อย ${t.subQ}:</strong> ${t.rubric.qText}<br>
+            <span class="text-success"><strong>เฉลย:</strong> ${t.rubric.key}</span><br>
+            <span class="text-dark"><strong>คำตอบเด็ก:</strong> ${t.ans || '<i class="text-muted">ไม่ได้ตอบ</i>'}</span>
+          </div>`;
+      });
+      previewHTML += `</div>`;
+
+      // 🟢 รวมร่าง ขั้นที่ 3 (Model), ขั้นที่ 4 (Mode) และ Preview ไว้ใน Popup เดียว
       const setupHTML = `
-        <div class="text-start mb-3 p-3 bg-light border rounded">
-          <h6 class="text-success fw-bold">✅ ดึงข้อมูลสำเร็จ!</h6>
-          <span class="small">พบคำตอบของนักศึกษา <b>${studentId}</b> จำนวน <b>${studentTasks.length}</b> ข้อย่อย พร้อมส่งตรวจแล้ว</span>
-        </div>
-        <div class="text-start">
+        <div class="text-start mb-2">
+          <label class="fw-bold mb-1 text-dark">👀 ตรวจทานข้อมูลก่อนส่งตรวจ (${studentTasks.length} ข้อย่อย):</label>
+          ${previewHTML}
+          
           <label class="fw-bold mb-1 text-primary">ขั้นที่ 3: เลือก Model AI ที่จะใช้ตรวจ</label>
-          <select id="auditModelSelect" class="form-select mb-3 border-primary">
-            <option value="gemini-flash-latest">Gemini Flash (แนะนำ: เร็วและเสถียร)</option>
-            <option value="gemini-pro-latest">Gemini Pro (วิเคราะห์ลึก)</option>
+          <select id="auditModelSelect" class="form-select form-select-sm mb-3 border-primary">
+            <option value="gemini-flash-latest">Gemini Flash (เสถียรที่สุด แนะนำ)</option>
+            <option value="gemini-pro-latest">Gemini Pro</option>
             <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
-            <option value="gemini-2.0-flash-lite">Gemini 2.0 Flash Lite</option>
             <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
           </select>
           
           <label class="fw-bold mb-1 text-primary">ขั้นที่ 4: รูปแบบคำตอบจาก AI</label>
           <div class="form-check mb-1">
             <input class="form-check-input" type="radio" name="auditModeRadio" id="modeReason" value="with_reason" checked>
-            <label class="form-check-label" for="modeReason">มีเหตุผลอธิบาย (Score & Reason)</label>
+            <label class="form-check-label small" for="modeReason">มีเหตุผลอธิบาย (Score & Reason)</label>
           </div>
-          <div class="form-check mb-3">
+          <div class="form-check mb-2">
             <input class="form-check-input" type="radio" name="auditModeRadio" id="modeScore" value="score_only">
-            <label class="form-check-label" for="modeScore">เฉพาะตัวเลขคะแนน (Score Only)</label>
+            <label class="form-check-label small" for="modeScore">เฉพาะตัวเลขคะแนน (Score Only)</label>
           </div>
         </div>
       `;
 
+      // ขั้นที่ 5: ปุ่มกดตรวจ / ยกเลิก
       const { isConfirmed } = await Swal.fire({
-        title: `ตั้งค่าการตรวจ: ${studentId}`,
+        title: `เตรียมตรวจ: ${studentId}`,
         html: setupHTML,
+        width: '600px',
         showCancelButton: true,
-        confirmButtonText: 'ขั้นที่ 5: 🚀 กดตรวจเลย!',
-        cancelButtonText: 'ยกเลิก (ถอยกลับ)'
+        confirmButtonText: 'ขั้นที่ 5: 🚀 กดยืนยันการตรวจ',
+        cancelButtonText: 'ถอยกลับ'
       });
 
-      if (!isConfirmed) continue; // ถ้ากดยกเลิก จะวนกลับไปหน้าเลือกเด็ก R01-R32 ทันที
+      if (!isConfirmed) continue; 
 
-      // ดึงค่าที่อาจารย์เลือกจากกล่อง Popup
       const auditModel = document.getElementById('auditModelSelect').value;
       const auditMode = document.querySelector('input[name="auditModeRadio"]:checked').value;
 
-      // 🟢 เริ่มส่งข้อมูลตรวจ
       Swal.fire({
-        title: `กำลังประมวลผล ${studentId}...`,
+        title: `กำลังวิเคราะห์ ${studentId}...`,
         html: `ใช้งาน Model: <b>${auditModel}</b><br><span class="text-danger small">⚠️ โปรดรอสักครู่ ห้ามปิดหน้าจอ</span>`,
         allowOutsideClick: false, didOpen: () => Swal.showLoading()
       });
@@ -1636,7 +1642,7 @@ function createNewMEQ(linkEl) {
       });
       Swal.close();
 
-      // 🟢 กางผลลัพธ์
+      // กางผลลัพธ์
       if (res.success) {
         let resultRowsHTML = '';
         let grandTotalScore = 0;
