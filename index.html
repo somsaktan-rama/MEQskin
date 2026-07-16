@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>MEQ Portal System V1.33 M</title>
+  <title>MEQ Portal System V1.33 N</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📝</text></svg>">
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -1523,7 +1523,7 @@ function createNewMEQ(linkEl) {
   }
 
 // =================================================================================
-  // 🔍 ฟังก์ชัน Audit (จอ Full Screen 98% / ซ่อนคอลัมน์เหตุผลตามโหมด)
+  // 🔍 ฟังก์ชัน Audit (อัปเดตระบบโชว์คะแนนรวมที่ได้จากหลังบ้าน)
   // =================================================================================
   async function auditSingleStudentUI() {
     Swal.fire({ title: 'กำลังดึงรายการข้อสอบ...', didOpen: () => Swal.showLoading() });
@@ -1574,7 +1574,6 @@ function createNewMEQ(linkEl) {
          continue; 
       }
 
-      // 🟢 ขยายความสูงกล่อง Preview ให้อ่านง่าย
       let previewHTML = `<div style="max-height: 450px; overflow-y: auto; border: 1px solid #ced4da; border-radius: 8px; padding: 15px; margin-bottom: 20px; background: #f8f9fa; text-align: left; font-size: 1rem;">`;
       studentTasks.forEach(t => {
         previewHTML += `
@@ -1595,9 +1594,9 @@ function createNewMEQ(linkEl) {
             <div class="col-md-6">
               <label class="fw-bold mb-1 text-primary">ขั้นที่ 3: เลือก Model AI ที่จะใช้ตรวจ</label>
               <select id="auditModelSelect" class="form-select border-primary shadow-sm mb-3">
-                <option value="gemini-flash-lite-latest">Gemini Flash Lite (ประหยัดโควตาที่สุด)</option>
-                <option value="gemini-flash-latest">Gemini Flash (แนะนำ: เสถียรและเร็วที่สุด)</option>
-                <option value="gemini-pro-latest">Gemini Pro (ฉลาดวิเคราะห์ลึกที่สุด)</option>
+                 <option value="gemini-flash-lite-latest">Gemini Flash Lite (ประหยัดโควตาที่สุด)</option>
+                 <option value="gemini-flash-latest">Gemini Flash (แนะนำ: เสถียรและเร็วที่สุด)</option>
+                 <option value="gemini-pro-latest">Gemini Pro (ฉลาดวิเคราะห์ลึกที่สุด)</option>
               </select>
             </div>
             <div class="col-md-6">
@@ -1615,11 +1614,10 @@ function createNewMEQ(linkEl) {
         </div>
       `;
 
-      // 🟢 หน้าต่างก่อนตรวจ ขยายความกว้างแบบเกือบเต็มจอ (95vw)
       const { isConfirmed } = await Swal.fire({
         title: `เตรียมตรวจ: ${studentId}`,
         html: setupHTML,
-        width: '95vw', // กว้างเกือบเต็มจอ
+        width: '95vw', 
         showCancelButton: true,
         confirmButtonText: 'ขั้นที่ 5: 🚀 กดยืนยันการตรวจ',
         cancelButtonText: 'ถอยกลับ'
@@ -1629,7 +1627,7 @@ function createNewMEQ(linkEl) {
 
       const auditModel = document.getElementById('auditModelSelect').value;
       const auditMode = document.querySelector('input[name="auditModeRadio"]:checked').value;
-      const isScoreOnly = (auditMode === 'score_only'); // เช็คว่าเลือกโหมดคะแนนล้วนหรือไม่
+      const isScoreOnly = (auditMode === 'score_only'); 
 
       Swal.fire({
         title: `กำลังวิเคราะห์ ${studentId}...`,
@@ -1661,13 +1659,13 @@ function createNewMEQ(linkEl) {
           `;
         });
 
-        // 🟢 หน้าต่างผลลัพธ์ ขยายความกว้างเต็มตา 98vw
+        // เปิดแสดงหน้าต่างตารางรายงานผลลัพธ์ฉบับเต็มความกว้างขยายใหญ่
         await Swal.fire({
           title: `📊 ผลการตรวจ Audit: ${res.studentId}`,
           html: `
-            <div style="text-align: left; margin-bottom: 12px; font-size: 1.1rem; background: #e9ecef; padding: 12px 15px; border-radius: 6px;">
+            <div style="text-align: left; margin-bottom: 12px; font-size: 1.1rem; background: #e9ecef; padding: 10px 15px; border-radius: 6px;">
               <strong>Model:</strong> <span class="text-primary">${res.modelUsed}</span> &nbsp;|&nbsp;
-              <strong>คะแนนรวมทั้งหมด:</strong> <span style="font-size: 1.3rem; color: #198754; font-weight: bold;">${res.grandTotal}</span>
+              <strong>คะแนนรวมทั้งหมด:</strong> <span style="font-size: 1.3rem; color: #198754; font-weight: bold;">${res.grandTotal} คะแนน</span>
             </div>
             <div style="max-height: 550px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 8px;">
               <table style="width: 100%; border-collapse: collapse; text-align: left; font-family: sans-serif; font-size: 1rem;">
@@ -1683,10 +1681,10 @@ function createNewMEQ(linkEl) {
                 <tbody>${resultRowsHTML}</tbody>
               </table>
             </div>
-            <div class="mt-3 text-muted small text-center">* คะแนนย่อยและคะแนนรวมถูกบันทึกลงแผ่นงาน Student_AI_Scores เรียบร้อยแล้ว *</div>
+            <div class="mt-3 text-muted small text-center">* คะแนนแต่ละข้อย่อย และคะแนนรวมถูกฝังลงแผ่นงาน Student_AI_Scores เรียบร้อยแล้ว *</div>
           `,
           icon: 'success', 
-          width: '98vw', // 🟢 ขยายหน้าต่างผลลัพธ์เป็น 98% ของหน้าจอ (Full Screen)
+          width: '98vw', 
           padding: '1.5rem',
           confirmButtonText: '🆗 ปิด (เลือกคนถัดไป)'
         });
@@ -1694,7 +1692,8 @@ function createNewMEQ(linkEl) {
         await Swal.fire('เกิดข้อผิดพลาด', res.message, 'error');
       }
     }
-  }  
+  }
+  
   // =========================================================
   // 📥 ดึงข้อมูล "ทุกข้อย่อย" ของนักศึกษา (รวบรัดขั้นตอนให้เลือกแค่ R01-R32)
   // =========================================================
