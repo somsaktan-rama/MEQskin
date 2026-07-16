@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>MEQ Portal System V1.33 M</title>
+  <title>MEQ Portal System V1.33 N</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📝</text></svg>">
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -1399,7 +1399,7 @@ function createNewMEQ(linkEl) {
   }
 
 // =================================================================================
-  // 🚀 ฟังก์ชัน AI ตรวจทั้งหมด (วนลูปตรวจทีละข้อย่อย เพื่อป้องกันระบบ Timeout)
+  // 🚀 ฟังก์ชัน AI ตรวจทั้งหมด (แสดงผล เลขข้อ + รหัสข้อสอบ)
   // =================================================================================
   async function bulkGradeEveryoneAI() {
     Swal.fire({ title: 'กำลังดึงรายการข้อสอบ...', didOpen: () => Swal.showLoading() });
@@ -1408,9 +1408,13 @@ function createNewMEQ(linkEl) {
 
     if (!resList.success || Object.keys(resList.data).length === 0) return Swal.fire('แจ้งเตือน', 'ไม่พบข้อมูล', 'warning');
 
-    // 1. เลือกชุดข้อสอบ
+    // 🟢 1. ปรับการแสดงผลให้เป็น "ข้อ no : meq_id"
     let meqOptions = {};
-    for (let meq in resList.data) { meqOptions[meq] = `รหัส: ${meq}`; }
+    for (let meq in resList.data) { 
+      let no = resList.data[meq].no;
+      meqOptions[meq] = no ? `ข้อ ${no} : ${meq}` : `รหัส: ${meq}`; 
+    }
+    
     const { value: meqId } = await Swal.fire({
       title: '✨ ขั้นที่ 1: เลือกชุดข้อสอบ (ตรวจเหมา)',
       input: 'select', inputOptions: meqOptions, showCancelButton: true
@@ -1441,9 +1445,9 @@ function createNewMEQ(linkEl) {
 
     const bulkModel = document.getElementById('bulkModelSelect').value;
     const bulkMode = document.querySelector('input[name="bulkMode"]:checked').value;
-    const subQList = resList.data[meqId].subQuestions; // ดึงรายชื่อข้อย่อยทั้งหมดมา
+    const subQList = resList.data[meqId].subQuestions; 
 
-    // 3. 🟢 ลูปสั่งตรวจ "ทีละข้อย่อย" ป้องกัน Timeout
+    // 3. ลูปสั่งตรวจ "ทีละข้อย่อย"
     let totalErrors = 0;
     for (let i = 0; i < subQList.length; i++) {
        let currentSubQ = subQList[i];
@@ -1460,7 +1464,7 @@ function createNewMEQ(linkEl) {
 
        if (!res.success) {
           await Swal.fire('หยุดชะงัก', `เกิดข้อผิดพลาดที่ข้อ ${currentSubQ}: ${res.message}`, 'error');
-          return; // หยุดทำงานถ้าพังหนัก
+          return; 
        }
        totalErrors += res.errorCount;
     }
@@ -1473,7 +1477,7 @@ function createNewMEQ(linkEl) {
   }
 
   // =================================================================================
-  // 🎯 ฟังก์ชัน AI ตรวจทีละข้อ (เลือกข้อย่อยที่ต้องการเจาะจงตรวจ)
+  // 🎯 ฟังก์ชัน AI ตรวจทีละข้อ (แสดงผล เลขข้อ + รหัสข้อสอบ)
   // =================================================================================
   async function gradeSingleQuestionAI() {
     Swal.fire({ title: 'กำลังดึงรายการข้อสอบ...', didOpen: () => Swal.showLoading() });
@@ -1482,8 +1486,13 @@ function createNewMEQ(linkEl) {
 
     if (!resList.success || Object.keys(resList.data).length === 0) return Swal.fire('แจ้งเตือน', 'ไม่พบข้อมูล', 'warning');
 
+    // 🟢 1. ปรับการแสดงผลให้เป็น "ข้อ no : meq_id" เช่นเดียวกัน
     let meqOptions = {};
-    for (let meq in resList.data) { meqOptions[meq] = `รหัส: ${meq}`; }
+    for (let meq in resList.data) { 
+      let no = resList.data[meq].no;
+      meqOptions[meq] = no ? `ข้อ ${no} : ${meq}` : `รหัส: ${meq}`; 
+    }
+    
     const { value: meqId } = await Swal.fire({
       title: '🎯 ขั้นที่ 1: เลือกชุดข้อสอบ',
       input: 'select', inputOptions: meqOptions, showCancelButton: true
@@ -1532,16 +1541,6 @@ function createNewMEQ(linkEl) {
       Swal.fire('✅ ตรวจเสร็จสิ้น!', `ประมวลผลข้อ ${targetSubQ} สำเร็จแล้ว`, 'success');
     } else {
       Swal.fire('เกิดข้อผิดพลาด', res.message, 'error');
-    }
-  }
-  
-  async function executeClearScores(meqId, clearType) {
-    Swal.fire({ title: 'กำลังล้างข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-    const res = await callAPI('clearAIScores', { meqId: meqId, clearType: clearType });
-    if (res.success) {
-      Swal.fire('สำเร็จ!', res.message, 'success');
-    } else {
-      Swal.fire('ข้อผิดพลาด', res.message, 'error');
     }
   }
 
