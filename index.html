@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>MEQ Portal System V1.33 K</title>
+  <title>MEQ Portal System V1.33 L</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📝</text></svg>">
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -1523,14 +1523,16 @@ function createNewMEQ(linkEl) {
   }
 
 // =================================================================================
-  // 🔍 ฟังก์ชัน Audit (ปรับ Flow: โชว์ข้อมูลตรวจทาน -> เลือกรุ่น AI -> กดตรวจ)
+  // 🔍 ฟังก์ชัน Audit (ขยายหน้าต่าง Preview ให้ใหญ่ขึ้น & คัดกรองเฉพาะ Model ที่ใช้งานได้)
   // =================================================================================
   async function auditSingleStudentUI() {
     Swal.fire({ title: 'กำลังดึงรายการข้อสอบ...', didOpen: () => Swal.showLoading() });
     const resList = await callAPI('getAvailableMeqFromAnswers', {});
     Swal.close();
 
-    if (!resList.success || Object.keys(resList.data).length === 0) return Swal.fire('แจ้งเตือน', 'ไม่พบข้อมูล', 'warning');
+    if (!resList.success || Object.keys(resList.data).length === 0) {
+      return Swal.fire('แจ้งเตือน', 'ไม่พบข้อมูลในแผ่นงาน Student_Answers', 'warning');
+    }
 
     // 🟢 ขั้นที่ 1: เลือกชุดข้อสอบ
     let meqOptions = {};
@@ -1545,7 +1547,9 @@ function createNewMEQ(linkEl) {
     if (!meqId) return;
 
     Swal.fire({ 
-      title: 'กำลังเตรียมข้อมูลรอไว้...', allowOutsideClick: false, didOpen: () => Swal.showLoading() 
+      title: 'กำลังเตรียมข้อมูลรอไว้...', 
+      text: 'โหลดคำตอบ เกณฑ์ และโจทย์ทั้งหมดเข้าสู่ระบบ',
+      allowOutsideClick: false, didOpen: () => Swal.showLoading() 
     });
     const prefetchRes = await callAPI('getMEQAuditData', { meqId: meqId });
     Swal.close();
@@ -1553,7 +1557,7 @@ function createNewMEQ(linkEl) {
     if (!prefetchRes.success) return Swal.fire('เกิดข้อผิดพลาด', prefetchRes.message, 'error');
     const studentsData = prefetchRes.studentsData;
 
-    // 🟢 วนลูป: ขั้นที่ 2 ถึง 5
+    // 🟢 ขั้นที่ 2: วนลูปเลือกนักศึกษา
     while (true) {
       let studentOptions = {};
       for(let i = 1; i <= 32; i++) {
@@ -1561,7 +1565,6 @@ function createNewMEQ(linkEl) {
           studentOptions[sid] = `นักศึกษา ${sid}`;
       }
       
-      // ขั้นที่ 2: เลือกเด็ก
       const { value: studentId } = await Swal.fire({
         title: `ขั้นที่ 2: เลือกนักศึกษาเข้าตรวจ Audit`,
         text: `ชุดข้อสอบปัจจุบัน: ${meqId}`,
@@ -1573,18 +1576,18 @@ function createNewMEQ(linkEl) {
 
       let studentTasks = studentsData[studentId] || [];
       if (studentTasks.length === 0) {
-         await Swal.fire('แจ้งเตือน', `ไม่พบคำตอบของ ${studentId}`, 'info');
+         await Swal.fire('แจ้งเตือน', `ไม่พบคำตอบของ ${studentId} ในระบบ`, 'info');
          continue; 
       }
 
-      // 🟢 สร้างหน้าจอ Preview ตรวจทานข้อมูล
-      let previewHTML = `<div style="max-height: 180px; overflow-y: auto; border: 1px solid #ced4da; border-radius: 6px; padding: 10px; margin-bottom: 15px; background: #fff; text-align: left; font-size: 0.85rem;">`;
+      // 🟢 สร้างหน้าจอ Preview ตรวจทานข้อมูล (ขยายความสูงและปรับให้สวยงามอ่านง่ายขึ้น)
+      let previewHTML = `<div style="max-height: 400px; overflow-y: auto; border: 1px solid #ced4da; border-radius: 8px; padding: 15px; margin-bottom: 20px; background: #f8f9fa; text-align: left; font-size: 0.95rem;">`;
       studentTasks.forEach(t => {
         previewHTML += `
-          <div style="border-bottom: 1px dashed #ccc; padding-bottom: 8px; margin-bottom: 8px;">
-            <strong class="text-primary">ข้อย่อย ${t.subQ}:</strong> ${t.rubric.qText}<br>
-            <span class="text-success"><strong>เฉลย:</strong> ${t.rubric.key}</span><br>
-            <span class="text-dark"><strong>คำตอบเด็ก:</strong> ${t.ans || '<i class="text-muted">ไม่ได้ตอบ</i>'}</span>
+          <div style="border-bottom: 1px dashed #adb5bd; padding-bottom: 12px; margin-bottom: 12px;">
+            <strong class="text-primary fs-6">ข้อย่อย ${t.subQ}:</strong> ${t.rubric.qText}<br>
+            <div class="mt-1"><span class="text-success"><strong>เฉลย:</strong> ${t.rubric.key}</span></div>
+            <div class="mt-1"><span class="text-dark"><strong>คำตอบนักศึกษา:</strong> ${t.ans || '<i class="text-muted">ไม่ได้พิมพ์คำตอบ</i>'}</span></div>
           </div>`;
       });
       previewHTML += `</div>`;
@@ -1592,36 +1595,41 @@ function createNewMEQ(linkEl) {
       // 🟢 รวมร่าง ขั้นที่ 3 (Model), ขั้นที่ 4 (Mode) และ Preview ไว้ใน Popup เดียว
       const setupHTML = `
         <div class="text-start mb-2">
-          <label class="fw-bold mb-1 text-dark">👀 ตรวจทานข้อมูลก่อนส่งตรวจ (${studentTasks.length} ข้อย่อย):</label>
+          <label class="fw-bold mb-2 text-dark fs-5">👀 ตรวจทานข้อมูลก่อนส่งตรวจ (${studentTasks.length} ข้อย่อย):</label>
           ${previewHTML}
           
-          <label class="fw-bold mb-1 text-primary">ขั้นที่ 3: เลือก Model AI ที่จะใช้ตรวจ</label>
-          <select id="auditModelSelect" class="form-select form-select-sm mb-3 border-primary">
-            <option value="gemini-flash-lite-latest">Gemini Flash Lite (*เร็วสุด/ประหยัด*)</option>
-            <option value="gemini-flash-latest">Gemini Flash (*เสถียร แนะนำ*)</option>
-            <option value="gemini-pro-latest">Gemini Pro (*ฉลาดสุดแต่เข้มงวด*)</option>
-          </select>
-          
-          <label class="fw-bold mb-1 text-primary">ขั้นที่ 4: รูปแบบคำตอบจาก AI</label>
-          <div class="form-check mb-1">
-            <input class="form-check-input" type="radio" name="auditModeRadio" id="modeReason" value="with_reason" checked>
-            <label class="form-check-label small" for="modeReason">มีเหตุผลอธิบาย (Score & Reason)</label>
-          </div>
-          <div class="form-check mb-2">
-            <input class="form-check-input" type="radio" name="auditModeRadio" id="modeScore" value="score_only">
-            <label class="form-check-label small" for="modeScore">เฉพาะตัวเลขคะแนน (Score Only)</label>
+          <div class="row">
+            <div class="col-md-6">
+              <label class="fw-bold mb-1 text-primary">ขั้นที่ 3: เลือก Model AI ที่จะใช้ตรวจ</label>
+              <select id="auditModelSelect" class="form-select border-primary shadow-sm mb-3">
+                <option value="gemini-flash-latest">Gemini Flash (แนะนำ: เสถียรและเร็วที่สุด)</option>
+                <option value="gemini-flash-lite-latest">Gemini Flash Lite (ประหยัดโควตาที่สุด)</option>
+                <option value="gemini-pro-latest">Gemini Pro (ฉลาดวิเคราะห์ลึกที่สุด)</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="fw-bold mb-1 text-primary">ขั้นที่ 4: รูปแบบคำตอบจาก AI</label>
+              <div class="form-check mb-1">
+                <input class="form-check-input" type="radio" name="auditModeRadio" id="modeReason" value="with_reason" checked>
+                <label class="form-check-label" for="modeReason">มีเหตุผลอธิบาย (Score & Reason)</label>
+              </div>
+              <div class="form-check mb-2">
+                <input class="form-check-input" type="radio" name="auditModeRadio" id="modeScore" value="score_only">
+                <label class="form-check-label" for="modeScore">เฉพาะตัวเลขคะแนน (Score Only)</label>
+              </div>
+            </div>
           </div>
         </div>
       `;
 
-      // ขั้นที่ 5: ปุ่มกดตรวจ / ยกเลิก
+      // 🟢 ขั้นที่ 5: ปุ่มกดตรวจ / ยกเลิก (ขยายหน้าต่างให้กว้าง 950px)
       const { isConfirmed } = await Swal.fire({
         title: `เตรียมตรวจ: ${studentId}`,
         html: setupHTML,
-        width: '600px',
+        width: '950px', // ขยายหน้าต่างให้กว้างเต็มตา
         showCancelButton: true,
         confirmButtonText: 'ขั้นที่ 5: 🚀 กดยืนยันการตรวจ',
-        cancelButtonText: 'ถอยกลับ'
+        cancelButtonText: 'ถอยกลับ (เลือกคนใหม่)'
       });
 
       if (!isConfirmed) continue; 
@@ -1629,6 +1637,7 @@ function createNewMEQ(linkEl) {
       const auditModel = document.getElementById('auditModelSelect').value;
       const auditMode = document.querySelector('input[name="auditModeRadio"]:checked').value;
 
+      // 🟢 เริ่มส่งข้อมูลตรวจ
       Swal.fire({
         title: `กำลังวิเคราะห์ ${studentId}...`,
         html: `ใช้งาน Model: <b>${auditModel}</b><br><span class="text-danger small">⚠️ โปรดรอสักครู่ ห้ามปิดหน้าจอ</span>`,
@@ -1640,7 +1649,7 @@ function createNewMEQ(linkEl) {
       });
       Swal.close();
 
-      // กางผลลัพธ์
+      // 🟢 กางผลลัพธ์ (คะแนนถูกเขียนลงช่องข้อย่อยใน Student_AI_Scores เรียบร้อยแล้วจาก Code.gs)
       if (res.success) {
         let resultRowsHTML = '';
         let grandTotalScore = 0;
@@ -1649,15 +1658,15 @@ function createNewMEQ(linkEl) {
           grandTotalScore += item.score;
           resultRowsHTML += `
             <tr style="border-bottom: 1px solid #dee2e6;">
-              <td style="padding: 8px; font-weight: bold; color: #0d6efd; text-align: center; vertical-align: top;">${item.subQuestion}</td>
-              <td style="padding: 8px; text-align: left; font-size: 0.85rem; vertical-align: top; background-color: #fdfdfd; line-height: 1.4;">
+              <td style="padding: 10px; font-weight: bold; color: #0d6efd; text-align: center; vertical-align: top;">${item.subQuestion}</td>
+              <td style="padding: 10px; text-align: left; font-size: 0.9rem; vertical-align: top; background-color: #fdfdfd; line-height: 1.4;">
                 <strong class="text-dark">โจทย์:</strong> ${item.questionText || '-'}<br>
                 <strong class="text-success">เฉลย:</strong> ${item.answerKey || '-'}<br>
                 <strong class="text-warning text-dark">เกณฑ์:</strong> ${item.aiRubric || '-'}
               </td>
-              <td style="padding: 8px; text-align: left; vertical-align: top; font-size: 0.88rem;">${item.studentAnswer || '-'}</td>
-              <td style="padding: 8px; font-weight: bold; color: #198754; text-align: center; font-size: 1.1rem; vertical-align: top;">${item.score}</td>
-              <td style="padding: 8px; text-align: left; color: #495057; font-size: 0.85rem; vertical-align: top;">${item.reason || '-'}</td>
+              <td style="padding: 10px; text-align: left; vertical-align: top; font-size: 0.9rem;">${item.studentAnswer || '-'}</td>
+              <td style="padding: 10px; font-weight: bold; color: #198754; text-align: center; font-size: 1.2rem; vertical-align: top;">${item.score}</td>
+              <td style="padding: 10px; text-align: left; color: #495057; font-size: 0.9rem; vertical-align: top;">${item.reason || '-'}</td>
             </tr>
           `;
         });
@@ -1665,24 +1674,25 @@ function createNewMEQ(linkEl) {
         await Swal.fire({
           title: `📊 ผลการตรวจ Audit: ${res.studentId}`,
           html: `
-            <div style="text-align: left; margin-bottom: 12px; font-size: 0.95rem; background: #e9ecef; padding: 8px 15px; border-radius: 6px;">
+            <div style="text-align: left; margin-bottom: 12px; font-size: 1rem; background: #e9ecef; padding: 10px 15px; border-radius: 6px;">
               <strong>Model:</strong> <span class="text-primary">${res.modelUsed}</span> &nbsp;|&nbsp;
-              <strong>คะแนนรวม:</strong> <span style="font-size: 1.1rem; color: #198754; font-weight: bold;">${grandTotalScore}</span>
+              <strong>คะแนนรวมทั้งหมด:</strong> <span style="font-size: 1.2rem; color: #198754; font-weight: bold;">${grandTotalScore}</span>
             </div>
             <div style="max-height: 480px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 8px;">
-              <table style="width: 100%; border-collapse: collapse; text-align: left; font-family: sans-serif; font-size: 0.9rem;">
+              <table style="width: 100%; border-collapse: collapse; text-align: left; font-family: sans-serif; font-size: 0.95rem;">
                 <thead style="background-color: #f8f9fa; position: sticky; top: 0; z-index: 10;">
                   <tr style="border-bottom: 2px solid #dee2e6;">
-                    <th style="padding: 10px; width: 6%;">ข้อ</th>
-                    <th style="padding: 10px; width: 34%;">โจทย์ & เฉลย</th>
-                    <th style="padding: 10px; width: 24%;">คำตอบนักศึกษา</th>
-                    <th style="padding: 10px; width: 8%;">คะแนน</th>
-                    <th style="padding: 10px; width: 28%;">เหตุผล AI</th>
+                    <th style="padding: 12px; width: 6%; text-align: center;">ข้อ</th>
+                    <th style="padding: 12px; width: 34%;">โจทย์ & เฉลย</th>
+                    <th style="padding: 12px; width: 24%;">คำตอบนักศึกษา</th>
+                    <th style="padding: 12px; width: 8%; text-align: center;">คะแนน</th>
+                    <th style="padding: 12px; width: 28%;">เหตุผล AI</th>
                   </tr>
                 </thead>
                 <tbody>${resultRowsHTML}</tbody>
               </table>
             </div>
+            <div class="mt-3 text-muted small text-center">* คะแนนย่อยแต่ละข้อถูกบันทึกลงแผ่นงาน Student_AI_Scores เรียบร้อยแล้ว *</div>
           `,
           icon: 'success', width: '1200px', confirmButtonText: '🆗 ปิด (เลือกคนถัดไป)'
         });
