@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>MEQ Portal System V1.33 G</title>
+  <title>MEQ Portal System V1.33 H</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📝</text></svg>">
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -1524,7 +1524,7 @@ function createNewMEQ(linkEl) {
   }
 
  // =================================================================================
-  // 🔍 ฟังก์ชัน Audit: ดึงข้อมูลเตรียมรอไว้ก่อน (Pre-fetch) แล้วค่อยส่งให้ AI
+  // 🔍 ฟังก์ชัน Audit รายคน: ปรับแก้ Flow เลือก Model ได้ / รองรับการกดตรวจ-ยกเลิก
   // =================================================================================
   async function auditSingleStudentUI() {
     Swal.fire({ title: 'กำลังดึงรายการข้อสอบ...', didOpen: () => Swal.showLoading() });
@@ -1535,7 +1535,7 @@ function createNewMEQ(linkEl) {
       return Swal.fire('แจ้งเตือน', 'ไม่พบข้อมูลในแผ่นงาน Student_Answers', 'warning');
     }
 
-    // 1. เลือกชุดข้อสอบ (MEQ ID)
+    // 1. หน้าต่างเลือกชุดข้อสอบ (MEQ ID)
     let meqOptions = {};
     for (let meq in resList.data) { 
       let no = resList.data[meq].no;
@@ -1547,25 +1547,36 @@ function createNewMEQ(linkEl) {
     });
     if (!meqId) return;
 
-    // 🟢 2. ทำการ Pre-fetch ข้อมูลทั้งหมดของชุดข้อสอบนี้มากองรอไว้ในหน้าเว็บทันที!
+    // 🟢 2. ดึงข้อมูลล่วงหน้ามากองรอไว้ (Pre-fetch) เพื่อความเร็วสูงสุด
     Swal.fire({ 
-      title: 'กำลังดึงข้อมูลเตรียมรอไว้...', 
-      text: 'โหลดโจทย์ เกณฑ์ และคำตอบของนักเรียนทุกคน',
+      title: 'กำลังเตรียมข้อมูลรอไว้...', 
+      text: 'โหลดคำตอบ เกณฑ์ และโจทย์ทั้งหมดของชุดข้อสอบนี้เข้าสู่หน่วยความจำ',
       allowOutsideClick: false, didOpen: () => Swal.showLoading() 
     });
     const prefetchRes = await callAPI('getMEQAuditData', { meqId: meqId });
     Swal.close();
     
-    if (!prefetchRes.success) {
-      return Swal.fire('เกิดข้อผิดพลาด', prefetchRes.message, 'error');
-    }
-    
-    // เก็บข้อมูลทั้งหมดไว้ในตัวแปร studentsData (พร้อมใช้งานทันทีโดยไม่ต้องอ่านชีตซ้ำ)
+    if (!prefetchRes.success) return Swal.fire('เกิดข้อผิดพลาด', prefetchRes.message, 'error');
     const studentsData = prefetchRes.studentsData;
 
-    // 3. เลือกรูปแบบการตรวจวิเคราะห์
+    // 🟢 3. เลือกโมเดล AI ที่ต้องการใช้สำหรับหน้า Audit นี้โดยเฉพาะ (เลือกแยกได้อิสระ)
+    const { value: auditModel } = await Swal.fire({
+      title: '🔍 ขั้นที่ 2: เลือก Model AI ที่จะใช้ตรวจ',
+      input: 'select',
+      inputOptions: {
+        'gemini-flash-latest': 'Gemini Flash (แนะนำ: รวดเร็ว เสถียร)',
+        'gemini-2.0-flash-lite': 'Gemini 2.0 Flash Lite (รุ่นเบาใหม่ล่าสุด)',
+        'gemini-2.0-flash': 'Gemini 2.0 Flash (แม่นยำขึ้น ความเร็วสูง)',
+        'gemini-pro-latest': 'Gemini Pro (วิเคราะห์ลึก แต่ใช้เวลานาน)'
+      },
+      inputValue: 'gemini-flash-latest',
+      showCancelButton: true
+    });
+    if (!auditModel) return;
+
+    // 4. เลือกรูปแบบการตรวจวิเคราะห์
     const { value: auditMode } = await Swal.fire({
-      title: '🔍 ขั้นที่ 2: ตัวเลือกรูปแบบการตรวจ',
+      title: '🔍 ขั้นที่ 3: รูปแบบคำตอบจาก AI',
       input: 'radio',
       inputOptions: {
         'with_reason': 'ตรวจประเมินพร้อมคำอธิบาย (Score & Reason)',
@@ -1575,7 +1586,7 @@ function createNewMEQ(linkEl) {
     });
     if (!auditMode) return;
 
-    // 4. ลูปเลือกนักศึกษา (วนซ้ำอัตโนมัติ)
+    // 🟢 5. เข้าสู่ลูปเปิดหน้าต่างเลือกนักเรียน R01-R32 (หากกดปิดรายงานจะวนกลับมาที่นี่อัตโนมัติ)
     while (true) {
       let studentOptions = {};
       for(let i = 1; i <= 32; i++) {
@@ -1583,42 +1594,52 @@ function createNewMEQ(linkEl) {
           studentOptions[sid] = `นักศึกษา ${sid}`;
       }
       
-      const { value: studentId } = await Swal.fire({
-        title: `🔍 เลือกนักศึกษาตรวจ Audit`,
-        text: `ชุดข้อสอบ: ${meqId} | ข้อมูลพร้อมส่งเข้า AI ⚡`,
-        input: 'select', inputOptions: studentOptions, inputPlaceholder: '-- เลือก R01 ถึง R32 --', 
-        showCancelButton: true, cancelButtonText: '❌ เลิกตรวจ (ปิดหน้าต่าง)'
+      // 🟢 หน้าจอเปิดให้เลือกรหัสนักเรียน พร้อมแสดงปุ่ม ตรวจ หรือ ยกเลิก (Cancel)
+      const { value: studentId, isDismissed } = await Swal.fire({
+        title: `🔍 เลือกนักศึกษาเข้าตรวจ Audit`,
+        html: `<div class="text-start mb-2 small text-muted">
+                 <b>ชุดข้อสอบ:</b> ${meqId}<br>
+                 <b>Model AI:</b> ${auditModel}<br>
+                 <b>โหมด:</b> ${auditMode === 'with_reason' ? 'มีเหตุผลประกอบ' : 'คะแนนดิบ'}
+               </div>`,
+        input: 'select', 
+        inputOptions: studentOptions, 
+        inputPlaceholder: '-- เลือก R01 ถึง R32 --', 
+        showCancelButton: true,
+        confirmButtonText: '🚀 กดตรวจคำตอบ',   // ปุ่มกดตรวจ
+        cancelButtonText: '❌ ยกเลิก (ปิดหน้าต่าง)' // ปุ่มยกเลิก
       });
       
-      if (!studentId) break;
+      // 🛑 หากอาจารย์กดปุ่ม "ยกเลิก" หรือกดปิดหน้าต่างเลือกเด็ก ลูปจะหยุดทำงานและกลับสู่หน้าหลักทันที
+      if (isDismissed || !studentId) {
+         break;
+      }
 
-      // หยิบเฉพาะ Data ของเด็กคนนั้นออกจากกองที่ Pre-fetch ไว้
+      // ดึงข้อมูลการ Pre-fetch ของเด็กคนนั้นออกมาใช้งาน
       let studentTasks = studentsData[studentId] || [];
       if (studentTasks.length === 0) {
-         await Swal.fire('แจ้งเตือน', 'ไม่พบคำตอบของนักศึกษาคนนี้', 'info');
+         await Swal.fire('แจ้งเตือน', 'ไม่พบคำตอบของนักศึกษาคนนี้ในระบบ', 'info');
          continue;
       }
 
-      let selectedModel = 'gemini-flash-latest';
-      const aiModelSelect = document.getElementById('aiModelSelect');
-      if (aiModelSelect && aiModelSelect.value) selectedModel = aiModelSelect.value;
-
+      // หน้าจอแสดงสถานะกำลังรันระบบตรวจข้อสอบ
       Swal.fire({
-        title: `กำลังตรวจสอบของ ${studentId}...`,
-        html: `ระบบกำลังรัน AI โมเดล <b>${selectedModel}</b>...<br><span class="text-danger fw-bold">⚠️ ห้ามปิดหน้าจอครับ</span>`,
+        title: `กำลังคำนวณคะแนนของ ${studentId}...`,
+        html: `ระบบกำลังจับคู่ตรวจคำตอบด้วยโมเดล <b>${auditModel}</b>...<br><span class="text-danger fw-bold">⚠️ โปรดรอระบบทำงานสักครู่ ห้ามปิดหน้าจอครับ</span>`,
         allowOutsideClick: false, didOpen: () => Swal.showLoading()
       });
 
-      // 🟢 5. ส่งข้อมูลของเด็กคนนั้นไปให้ AI ประมวลผล (ทำงานไวขึ้น 2-3 เท่า)
+      // ยิงข้อมูลตรงเข้าสู่กระบวนการตรวจ
       const res = await callAPI('processStudentAuditAI', { 
         tasks: studentTasks,
         meqId: meqId, 
         studentId: studentId, 
-        model: selectedModel, 
+        model: auditModel, // ส่งชื่อโมเดลที่เลือกเฉพาะเจาะจงไปหลังบ้าน
         mode: auditMode 
       });
       Swal.close();
 
+      // 6. เมื่อประมวลผลเสร็จ กางรายงานตารางผลลัพธ์
       if (res.success) {
         let resultRowsHTML = '';
         let grandTotalScore = 0;
@@ -1642,15 +1663,16 @@ function createNewMEQ(linkEl) {
           `;
         });
 
+        // เปิดแสดงหน้าต่างตารางรายงานสรุปขนาดใหญ่กว้าง 1180px
         await Swal.fire({
-          title: `📊 ผลการตรวจเชิงลึก (Audit): ${res.studentId}`,
+          title: `📊 รายงานผล Audit เชิงลึก: ${res.studentId}`,
           html: `
             <div style="text-align: left; margin-bottom: 12px; font-size: 0.95rem; background: #e9ecef; padding: 8px 15px; border-radius: 6px;">
               <strong>ชุดข้อสอบ:</strong> <span class="text-dark fw-bold">${res.meqId}</span> &nbsp;&nbsp;|&nbsp;&nbsp;
               <strong>AI Model:</strong> <span class="text-primary fw-bold">${res.modelUsed}</span> &nbsp;&nbsp;|&nbsp;&nbsp;
-              <strong>คะแนนรวม:</strong> <span style="font-size: 1.2rem; color: #198754; font-weight: bold;">${grandTotalScore} คะแนน</span>
+              <strong>คะแนนรวมทั้งหมด:</strong> <span style="font-size: 1.2rem; color: #198754; font-weight: bold;">${grandTotalScore} คะแนน</span>
             </div>
-            <div style="max-height: 480px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 8px;">
+            <div style="max-height: 460px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 8px;">
               <table style="width: 100%; border-collapse: collapse; text-align: left; font-family: sans-serif; font-size: 0.9rem;">
                 <thead>
                   <tr style="background-color: #f8f9fa; border-bottom: 2px solid #dee2e6; position: sticky; top: 0; z-index: 10;">
@@ -1671,6 +1693,10 @@ function createNewMEQ(linkEl) {
           width: '1180px',
           confirmButtonText: '🆗 รับทราบ (ตรวจคนถัดไป)'
         });
+        
+        // 💡 เมื่อกดปิดหน้าจอรายงานสรุปผล ตัวลูป `while(true)` จะดีดหน้าต่างกลับไปเปิดช่อง
+        // เลือกรหัสนักศึกษาคนถัดไปให้อัตโนมัติทันทีตามที่อาจารย์ต้องการครับ
+        
       } else {
         await Swal.fire('การตรวจสอบผิดพลาด', res.message, 'error');
       }
