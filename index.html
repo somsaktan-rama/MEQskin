@@ -1443,8 +1443,8 @@ function createNewMEQ(linkEl) {
       <div class="text-start mb-2">
         <label class="fw-bold mb-1 text-primary">เลือก Model AI:</label>
         <select id="bulkModelSelect" class="form-select border-primary shadow-sm mb-3">
-          <option value="gemini-flash-latest">Gemini Flash (แนะนำ)</option>
           <option value="gemini-flash-lite-latest">Gemini Flash Lite</option>
+          <option value="gemini-flash-latest">Gemini Flash (แนะนำ)</option>
           <option value="gemini-pro-latest">Gemini Pro</option>
         </select>
         <label class="fw-bold mb-1 text-primary">รูปแบบการตรวจ:</label>
@@ -1540,8 +1540,8 @@ function createNewMEQ(linkEl) {
       <div class="text-start mb-2">
         <label class="fw-bold mb-1 text-primary">เลือก Model AI:</label>
         <select id="singleModelSelect" class="form-select border-primary shadow-sm mb-3">
-          <option value="gemini-flash-latest">Gemini Flash (แนะนำ)</option>
           <option value="gemini-flash-lite-latest">Gemini Flash Lite</option>
+          <option value="gemini-flash-latest">Gemini Flash (แนะนำ)</option>
           <option value="gemini-pro-latest">Gemini Pro</option>
         </select>
       </div>
@@ -1650,20 +1650,20 @@ function createNewMEQ(linkEl) {
             <div class="col-md-6">
               <label class="fw-bold mb-1 text-primary">ขั้นที่ 3: เลือก Model AI ที่จะใช้ตรวจ</label>
               <select id="auditModelSelect" class="form-select border-primary shadow-sm mb-3">
-                <option value="gemini-flash-latest">Gemini Flash (แนะนำ: เสถียรและเร็วที่สุด)</option>
                 <option value="gemini-flash-lite-latest">Gemini Flash Lite (ประหยัดโควตาที่สุด)</option>
+                <option value="gemini-flash-latest">Gemini Flash (แนะนำ: เสถียรและเร็วที่สุด)</option>
                 <option value="gemini-pro-latest">Gemini Pro (ฉลาดวิเคราะห์ลึกที่สุด)</option>
               </select>
             </div>
             <div class="col-md-6">
               <label class="fw-bold mb-1 text-primary">ขั้นที่ 4: รูปแบบคำตอบจาก AI</label>
               <div class="form-check mb-1">
-                <input class="form-check-input" type="radio" name="auditModeRadio" id="modeReason" value="with_reason" checked>
-                <label class="form-check-label" for="modeReason">มีเหตุผลอธิบาย (Score & Reason)</label>
-              </div>
-              <div class="form-check mb-2">
                 <input class="form-check-input" type="radio" name="auditModeRadio" id="modeScore" value="score_only">
                 <label class="form-check-label" for="modeScore">เฉพาะตัวเลขคะแนน (Score Only)</label>
+              </div>
+              <div class="form-check mb-2">
+                <input class="form-check-input" type="radio" name="auditModeRadio" id="modeReason" value="with_reason" checked>
+                <label class="form-check-label" for="modeReason">มีเหตุผลอธิบาย (Score & Reason)</label>
               </div>
             </div>
           </div>
